@@ -137,3 +137,8 @@ octave-workspace
 # AUDIO FILES
 
 *.wav
+
+#VIDEO FILES
+
+*.avi
+*.mp4
