@@ -54,9 +54,6 @@ $RECYCLE.BIN/
 ## We have git for backups!
 ##---------------------------------------------------
 
-# figures
-*.fig
-
 # data files
 *.mat
 
