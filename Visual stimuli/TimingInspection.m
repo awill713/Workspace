@@ -143,5 +143,19 @@ for i = 1:numel(fields)
     xlabel('Onset delay (ms)');
     ylabel('Offset delay (ms)');
     title([fields{i} ' light onset vs light offset delays']);
+    
+    subplot(3,2,6);
+    plot(onDelay);
+    xlabel('Stimulus number (coincident light and sound)');
+    ylabel('Delay between sound and light onset (s)');
+    pf = polyfit(1:20,onDelay,1);
+    pv = polyval(pf,1:20);
+    Bbar = mean(onDelay);
+    SStot = sum((onDelay - Bbar).^2);
+    SSres = sum((onDelay - pv).^2);
+    R2 = 1 - SSres/SStot;
+    title(['m = ' num2str(pf(1)) ', b = ' num2str(pf(2)) ', R^{2} = ',R2]);
+
 end
 
+% saveas(gcf,['/Volumes/AARON FILES/Two photon/2PM 003/AW000/AV 2P 20180926/v0figure.fig']);
