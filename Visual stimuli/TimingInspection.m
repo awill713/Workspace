@@ -154,7 +154,7 @@ for i = 1:numel(fields)
     SStot = sum((onDelay - Bbar).^2);
     SSres = sum((onDelay - pv).^2);
     R2 = 1 - SSres/SStot;
-    title(['m = ' num2str(pf(1)) ', b = ' num2str(pf(2)) ', R^{2} = ',R2]);
+    title(['m = ' num2str(pf(1)) ', b = ' num2str(pf(2)) ', R^{2} = ' num2str(R2)]);
 
 end
 
