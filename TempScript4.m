@@ -59,21 +59,21 @@ legend('Normalized responses','Generated gaussian');
 % image(:,:,2) = tempImage;
 % image(:,:,3) = tempImage;
 cellNums = find([dat.stat.iscell]);
-for i = 1:86
+for i = 1:88
     n = cellNums(i);
     ipix{i} = dat.stat(n).ipix;
     ypix{i} = dat.stat(n).ypix;
     xpix{i} = dat.stat(n).xpix;
 end
 
-bFreq = zeros(1,86);
-for n = 1:86
+bFreq = zeros(1,88);
+for n = 1:88
     bFreq(n) = find(tuningCurves(n,:)==max(tuningCurves(n,:)));
 end
 
 colorRange = jet;
 coloredImage = zeros(512,512,3);
-for i = 1:86
+for i = 1:88
     if sum(ismember(tunedNeurons,i))
         freq = bFreq(i);
         temp = round(interp1(linspace(1,20,length(colorRange)),1:length(colorRange),freq));
@@ -104,7 +104,7 @@ ylabel(cb,'Frequency (kHz)');
 
 colorRange = jet;
 coloredImage = ones(512,512,3).*0.5;
-for i = 1:86
+for i = 1:88
     if sum(ismember(tunedNeurons,i))
         freq = bFreq(i);
         temp = round(interp1(linspace(1,20,length(colorRange)),1:length(colorRange),freq));

@@ -181,4 +181,4 @@ end
 tunedNeurons = find([tuningStats.significant]);
 
 
-% save([folder '/' mouse '_' date '_FRA'],'tuningCurves','toneResponses','frequencies','attenuations','tuningStats','tunedNeurons');
+save([folder '/' mouse '_' date '_FRA'],'tuningCurves','toneResponses','frequencies','tuningStats','tunedNeurons');
