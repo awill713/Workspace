@@ -1,6 +1,6 @@
 
 clear;
-[file folder] = uigetfile('/Users/Aaron/Documents/');
+[file folder] = uigetfile('/Users/Aaron/Documents/'); %the processedData file
 if file==0
     return;
 end
@@ -28,6 +28,7 @@ totalFrames = postToneFrames + preToneFrames + 1;
 
 % toneResponses = cell(totalNeurons,length(attenuations));
 toneResponses = cell(totalNeurons,uniqueTones);
+trialResponses = cell(totalNeurons,1);
 % tuningCurves = zeros(totalNeurons,length(attenuations),uniqueTones);
 standardDeviations = zeros(totalNeurons,uniqueTones);
 tuningCurves = zeros(totalNeurons,uniqueTones);
@@ -159,6 +160,8 @@ for n = 1:totalNeurons
     [curve value] = MutualInformation2(tuningCurves(n,:),standardDeviations(n,:));
     mutualInformation{n,1} = curve;
     mutualInformation{n,2} = value;
+    
+    trialResponses{n} = squeeze(allResponses(n,:,:,:));
 end
 
 % anovaMatrix = zeros(totalNeurons*repeats,uniqueTones);
@@ -179,6 +182,15 @@ end
 % end
 
 tunedNeurons = find([tuningStats.significant]);
+untunedNeurons = find([tuningStats.significant]==0);
 
+f1 = figure;hold on;
+histogram([mutualInformation{tunedNeurons,2}]);
+histogram([mutualInformation{untunedNeurons,2}]);
+title('Mutual information of tuned vs untuned neurons');
+xlabel('Information (bits)');
+ylabel('Number of neurons');
+legend({['Tuned (n = ' num2str(length(tunedNeurons)) ')'], ['Untuned (n = ' num2str(length(untunedNeurons)) ')']});
 
-save([folder '/' mouse '_' date '_FRA'],'tuningCurves','toneResponses','frequencies','tuningStats','tunedNeurons');
+save([folder '/' mouse '_' date '_FRA'],'tuningCurves','toneResponses','trialResponses','frequencies','tuningStats','tunedNeurons');
+saveas(f1,[folder '/' mouse '_' date '_mutualInformationHistogram.fig']);

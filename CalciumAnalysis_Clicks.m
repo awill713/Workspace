@@ -22,7 +22,8 @@ postToneFrames = ceil(frameRate*postToneTime/1000);
 totalFrames = postToneFrames + preToneFrames + 1;
 
 responses = zeros(totalNeurons,totalFrames);
-timeForAverage = 2000; %ms;
+eachTrial = zeros(totalNeurons,repeats,totalFrames);
+timeForAverage = 1000; %ms;
 framesForAverage = ceil(frameRate*timeForAverage/1000);
 
 for n = 1:totalNeurons
@@ -57,6 +58,8 @@ for n = 1:totalNeurons
         tuningStats(n).responseSign = sign(mean(post)-mean(pre));
     end
     
+    eachTrial(n,:,:) = tempResp;
+    
 end
 
 responsiveNeurons = find([tuningStats.significant]==1);
@@ -64,31 +67,18 @@ length(responsiveNeurons)
 length(find([tuningStats.responseSign]==1))
 length(find([tuningStats.responseSign]==-1))
 
-% meanTrace = zeros(1,totalFrames);
-% posTrace = zeros(1,totalFrames);
-% posCount = 0;
-% negTrace = zeros(1,totalFrames);
-% negCount = 0;
-% for nn = 1:length(responsiveNeurons)
-%     neuron = responsiveNeurons(nn);
-%     if tuningStats(neuron).responseSign > 0
-%         posTrace = posTrace + responses(neuron,:);
-%         posCount = posCount+1;
-%     else
-%         negTrace = negTrace + responses(neuron,:);
-%         negCount = negCount+1;
-%     end
-%     meanTrace = meanTrace + responses(neuron,:);
-% end
-% figure;
-% subplot(1,3,1);
-% posTrace = posTrace./posCount;
-% plot(posTrace);
-% subplot(1,3,2);
-% negTrace = negTrace./negCount;
-% plot(negTrace);
-% subplot(1,3,3);
-% meanTrace = meanTrace./length(responsiveNeurons);
-% plot(meanTrace);
+up = responsiveNeurons(find([tuningStats.responseSign]==1));
+down = responsiveNeurons(find([tuningStats.responseSign]==-1));
 
-save([folder '/' mouse '_' date '_clickResponses'],'responses','tuningStats','responsiveNeurons');
+f1 = figure;hold on;
+plot(mean(responses(up,:)));
+plot(mean(responses(down,:)));
+legend({['n = ' num2str(length(up))], ['n = ' num2str(length(down))]});
+title('Sound responsive neurons');
+xticks(1:round(frameRate):totalFrames);
+xticklabels({'-1','0','1','2','3','4','5','6','7'});
+xlabel('Time relative to stimulus onset');
+ylabel('\Delta F / std(F)');
+
+save([folder '/' mouse '_' date '_clickResponses'],'responses','eachTrial','tuningStats','responsiveNeurons');
+saveas(f1,[folder '/' mouse '_' date '_clickResponsesFigure.fig']);

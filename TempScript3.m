@@ -2,6 +2,8 @@
 
 %% Load and process data
 % clear;
+% file = 'AW055_20190109_2P_FRA_processedData.mat';
+% folder = '/Volumes/AARON FILES/Two photon/2PM 004/AW055/2P 20190109/Pure tones/';
 file = 'AW017_20180519_2P_FRA_processedData.mat';
 folder = '/Volumes/AARON FILES/Two photon/2PM 001/AW017/2P 20180519/Pure tones/';
 % [file folder] = uigetfile('/Users/Aaron/Documents/');
@@ -238,10 +240,10 @@ untunedNeurons = find([tuningStats.significant] == 0);
 %% Display basic MI data
 figure;
 subplot(2,1,1); hold on;
-histogram([mutualInformation{tunedNeurons,2}],linspace(0,10,21));
-histogram([mutualInformation{untunedNeurons,2}],linspace(0,10,21));
-histogram([shuffledMI{tunedNeurons,2}],linspace(0,10,21));
-histogram([shuffledMI{untunedNeurons,2}],linspace(0,10,21));
+histogram([mutualInformation{tunedNeurons,2}],linspace(0,13,27));
+histogram([mutualInformation{untunedNeurons,2}],linspace(0,13,27));
+% histogram([shuffledMI{tunedNeurons,2}],linspace(0,13,27));
+% histogram([shuffledMI{untunedNeurons,2}],linspace(0,13,27));
 legend('Tuned neurons','Untuned neurons','Shuffled tuned','Shuffled untuned');
 xlabel('Mutual information (bits)');
 
@@ -339,12 +341,13 @@ end
 % stimProb = stimHist ./ sum(stimHist);
 % stimEntropy = sum(-stimProb .* log2(stimProb));
 
-offsetRange = -25:1:25;
+offsetRange = -1:1:1;
 entireMI = zeros(1,totalNeurons);
 entireMItuned = zeros(1,length(offsetRange));
 entireMIuntuned = zeros(1,length(offsetRange));
 entireMIklds = zeros(1,length(offsetRange));
 entireMIp = zeros(1,length(offsetRange));
+entireMISet = zeros(totalNeurons,length(offsetRange));
 peakMIandOffset = zeros(2,totalNeurons);
 
 shuffledContMI = zeros(1,totalNeurons);
@@ -427,7 +430,11 @@ for o = 1:length(offsetRange)
             peakMIandOffset(1,n) = entireMI(n);
             peakMIandOffset(2,n) = offset;
         end
+        
+        
     end
+    
+    entireMISet(:,o) = entireMI;
     
     entireMItuned(o) = mean(entireMI(tunedNeurons));
     entireMIuntuned(o) = mean(entireMI(untunedNeurons));
@@ -457,8 +464,8 @@ legend('KL Divergence','p-value')
 xlabel('Offset');
 title('Continuous MI');
 figure; hold on;
-histogram(peakMIandOffset(2,tunedNeurons),-300:15:300);
-histogram(peakMIandOffset(2,untunedNeurons),-300:15:300);
+histogram(peakMIandOffset(2,tunedNeurons),-25:1:25);
+histogram(peakMIandOffset(2,untunedNeurons),-25:1:25);
 % figure; hold on;
 % [h, p] = ttest2(entireMI(tunedNeurons),entireMI(untunedNeurons));
 % bar(1,mean(entireMI(tunedNeurons)),'b');
@@ -530,7 +537,7 @@ for fb = 1:length(framesBack)
             temporalPeakMIandOffset(1,n) = temporalMI(n);
             temporalPeakMIandOffset(2,n) = offset;
         end
-        n
+        n;
     end
     
     temporalMItuned(fb) = mean(temporalMI(tunedNeurons));
@@ -545,3 +552,245 @@ end
 figure; hold on;
 plot(framesBack, temporalMItuned);
 plot(framesBack, temporalMIuntuned);
+
+%% Using estimated spikes/firing rate from deconvolved calcium trace
+
+% Tuning curve estimation
+
+
+mouse = exptInfo.mouse;
+date = exptInfo.recDate;
+frequencies = stimInfo.frequencies;
+order = stimInfo.order;
+
+totalNeurons = length(calcium.n);
+uniqueTones = stimInfo.uniqueTones;
+
+totalTones = length(stimInfo.order);
+repeats = stimInfo.repeats;
+
+frameRate = exptInfo.fr;
+preToneTime = 1000; %ms
+preToneFrames = round(frameRate*preToneTime/1000);
+postToneTime = stimInfo.ITI; %ms
+postToneFrames = ceil(frameRate*postToneTime/1000);
+totalFrames = postToneFrames + preToneFrames + 1;
+
+spTuningCurves = zeros(totalNeurons,uniqueTones);
+
+tempTraces = zeros(totalNeurons,uniqueTones,repeats,totalFrames);
+rawTraces = zeros(totalNeurons,uniqueTones,repeats,totalFrames);
+smoothTraces = zeros(totalNeurons,uniqueTones,repeats,totalFrames);
+
+smoothedRate = zeros(totalNeurons,totalExpFrames);
+
+for n = 1:totalNeurons
+    train = spikes.raster(n,:);
+    
+    alpha = 10;
+    
+    tempRate = zeros(1,length(train));
+    for i = 1:length(train)
+        
+        tempSum = 0;
+        
+        for tau = 1:i-1
+            tauj = 1/30 * tau;
+            w = alpha^2 * tauj * exp(-alpha*tauj);
+            temp = w*train(i-tau);
+            
+            tempSum = tempSum + temp;
+        end
+        
+        tempRate(i) = tempSum;
+    end
+    n
+    
+    smoothedRate(n,:) = tempRate;
+end
+    
+   
+for n = 1:totalNeurons
+    
+    for u = 1:uniqueTones
+        
+        uTones = find(order==u);
+        
+        for t = 1:length(uTones)
+            uT = uTones(t);
+            eventOnset = events.eventsOn(uT);
+            trace = spikes.raster(n,eventOnset-preToneFrames:eventOnset+postToneFrames);
+            preMean = mean(trace(1:preToneFrames));
+            preStd = std(trace(1:preToneFrames));
+            theTrace = (trace - preMean) ./ preStd;
+            if sum(isnan(theTrace))
+                problems(n,u,t) = 1;
+            end
+            tempTraces(n,u,t,:) = theTrace;
+            rawTraces(n,u,t,:) = trace;
+            smoothTraces(n,u,t,:) = smoothedRate(n,eventOnset-preToneFrames:eventOnset+postToneFrames);
+        end
+    end
+end
+
+spTuningCurves = squeeze(mean(mean(rawTraces(:,:,:,31:37),4),3));
+spTuningSTD = squeeze(std(mean(rawTraces(:,:,:,31:37),4),[],3));
+smoothTuningCurves = squeeze(mean(mean(smoothTraces(:,:,:,31:37),4),3));
+smoothTuningSTD = squeeze(std(mean(smoothTraces(:,:,:,31:37),4),[],3));
+
+% [rho p] = corr(reshape(spTuningCurves,[155*20 1]),reshape(tuningCurves, [155*20 1]));
+% 
+% figure;scatter(reshape(spTuningCurves,[155*20 1]),reshape(tuningCurves, [155*20 1]));
+% title(['r = ' num2str(rho) ', p = ' num2str(p)]);
+
+bins = uniqueTones+1;
+stimulusMaster = zeros(1,totalExpFrames);
+for e = 1:length(events.eventsOn)
+    stimulusMaster(events.eventsOn(e):events.eventsOff(e+1)) = order(e);
+end
+
+offsetRange = -25:1:25;
+entireMItuned = zeros(1,length(offsetRange));
+entireMIuntuned = zeros(1,length(offsetRange));
+entireMIklds = zeros(1,length(offsetRange));
+entireMIp = zeros(1,length(offsetRange));
+entireMISet = zeros(totalNeurons,length(offsetRange));
+peakMIandOffset = zeros(2,totalNeurons);
+
+shuffledContMI = zeros(1,totalNeurons);
+shuffledContMItuned = zeros(1,length(offsetRange));
+shuffledContMIuntuned = zeros(1,length(offsetRange));
+offsetRange = -25:1:25;
+
+for o = 1:length(offsetRange)
+    
+    offset = offsetRange(o);
+    
+    stimulus = stimulusMaster;
+    if offset>0
+        stimulus((end-offset+1):end) = [];
+    elseif offset<0
+        stimulus(1:-offset) = [];
+    end
+    range = linspace(-0.5,max(stimulus)+0.5,bins+1);
+    stimHist = histcounts(stimulus,range);
+    stimProb = stimHist ./ sum(stimHist);
+    stimEntropy = sum(-stimProb .* log2(stimProb));
+    
+    entireMI = zeros(1,totalNeurons);
+    
+    for n = 1:totalNeurons
+%         responseTrace = calcium.npilSubTraces(n,:);
+
+%         responseTrace = spikes.raster(n,:);
+%         shuff = spikes.raster(n,randperm(length(spikes.raster)));
+        
+        responseTrace = smoothedRate(n,:);
+        shuff = smoothedRate(n,randperm(length(smoothedRate)));
+
+        minFluor = min(responseTrace);
+        maxFluor = max(responseTrace);
+        binnedFluor = discretize(responseTrace,linspace(minFluor,maxFluor,bins+1));
+        binnedShuff = discretize(shuff,linspace(minFluor,maxFluor,bins+1));
+        
+        entropyGivenFluor = zeros(1,length(unique(binnedFluor)));
+        fluorProb = zeros(1,length(unique(binnedFluor)));
+        
+        entropyGivenFluorShuff = zeros(1,length(unique(binnedFluor)));
+        shuffProb = zeros(1,length(unique(binnedFluor)));
+        
+        for fluor = min(binnedFluor):max(binnedFluor)
+
+            indices = find(binnedFluor == fluor);
+            if offset>0
+                indices(indices<offset+1) = [];
+            elseif offset<0
+                indices(indices>(length(responseTrace)+offset)) = []; 
+            end
+            stimGivenFluor = stimulusMaster(indices-offset);
+            tempHist = histcounts(stimGivenFluor,range);
+            tempProb = tempHist ./ sum(tempHist);
+            tempProb(isnan(tempProb)) = 0;
+            entropyGivenFluor(fluor) = sum(-tempProb .* log2(tempProb+eps));
+            
+            fluorProb(fluor) = sum(binnedFluor == fluor) / length(binnedFluor);
+            
+            indices = find(binnedShuff == fluor);
+            if offset>0
+                indices(indices<offset+1) = [];
+            elseif offset<0
+                indices(indices>(length(responseTrace)+offset)) = []; 
+            end
+            stimGivenFluor = stimulusMaster(indices-offset);
+            tempHist = histcounts(stimGivenFluor,range);
+            tempProb = tempHist ./ sum(tempHist);
+            tempProb(isnan(tempProb)) = 0;
+            entropyGivenFluorShuff(fluor) = sum(-tempProb .* log2(tempProb+eps));
+            
+            shuffProb(fluor) = sum(binnedShuff == fluor) / length(binnedShuff);
+        end
+        
+        tempMI = stimEntropy - sum(fluorProb.* entropyGivenFluor);
+        tempMIShuff = stimEntropy - sum(shuffProb.* entropyGivenFluorShuff);
+        
+        entireMI(n) = tempMI;
+        shuffledContMI(n) = tempMIShuff;
+        if entireMI(n) > peakMIandOffset(1,n)
+            peakMIandOffset(1,n) = entireMI(n);
+            peakMIandOffset(2,n) = offset;
+        end
+        
+        
+    end
+    
+    entireMISet(:,o) = entireMI;
+    
+    entireMItuned(o) = mean(entireMI(tunedNeurons));
+    entireMIuntuned(o) = mean(entireMI(untunedNeurons));
+    entireMIklds(o) = KLDivergence(entireMI(tunedNeurons),entireMI(untunedNeurons));
+    [h, p] = ttest2(entireMI(tunedNeurons),entireMI(untunedNeurons));
+    entireMIp(o) = p;
+    offset
+    
+    shuffledContMItuned(o) = mean(shuffledContMI(tunedNeurons));
+    shuffledContMIuntuned(o) = mean(shuffledContMI(untunedNeurons));
+    
+end
+
+figure;
+subplot(2,1,1);hold on;
+plot(offsetRange,entireMItuned);
+plot(offsetRange,entireMIuntuned);
+plot(offsetRange,shuffledContMItuned);
+plot(offsetRange,shuffledContMIuntuned);
+subplot(2,1,2); hold on;
+plot(offsetRange,entireMItuned./entireMIuntuned);
+plot(offsetRange,ones(1,length(offsetRange)));
+figure;
+plot(offsetRange,entireMIklds);
+yyaxis right;
+plot(offsetRange,log(entireMIp));
+legend('KL Divergence','p-value')
+xlabel('Offset');
+title('Continuous MI');
+figure; hold on;
+histogram(peakMIandOffset(2,tunedNeurons),-25:1:25);
+histogram(peakMIandOffset(2,untunedNeurons),-25:1:25);
+figure;histogram(entireMISet(tunedNeurons,26),0:10^-3:1.8*10^-2)
+hold on;histogram(entireMISet(untunedNeurons,26),0:10^-3:1.8*10^-2)
+
+%Mutual information from tuning curves of spike raster data
+spMutualInformation = cell(totalNeurons,2);
+
+for n = 1:totalNeurons
+    tuning = spTuningCurves(n,:);
+    stds = spTuningSTD(n,:);
+    [curve, value] = MutualInformation2(tuning,stds);
+    spMutualInformation{n,1} = curve;
+    spMutualInformation{n,2} = value;
+    n
+end
+figure;histogram([spMutualInformation{tunedNeurons,2}]);
+hold on; histogram([spMutualInformation{untunedNeurons,2}]);
+[h, p] = ttest2([spMutualInformation{tunedNeurons,2}],[spMutualInformation{untunedNeurons,2}]);
+title(['Significant? ' num2str(h) ', p = ' num2str(p)]);

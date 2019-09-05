@@ -196,6 +196,8 @@ function pushbutton1_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 global data;
+cla(handles.axes1);
+cla(handles.axes2);
 
 [file folder] = uigetfile('/Users/Aaron/Documents');
 data = load([folder '/' file]);
