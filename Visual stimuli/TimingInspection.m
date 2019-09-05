@@ -155,7 +155,17 @@ for i = 1:numel(fields)
     SSres = sum((onDelay - pv).^2);
     R2 = 1 - SSres/SStot;
     title(['m = ' num2str(pf(1)) ', b = ' num2str(pf(2)) ', R^{2} = ' num2str(R2)]);
-
+    
+    figure;
+    plot(master.(fields{i}).soundUpRaw(soundBoth),onDelay);
+    pf = polyfit(master.(fields{i}).soundUpRaw(soundBoth) - master.(fields{i}).soundUpRaw(1),onDelay,1);
+    pv = polyval(pf,master.(fields{i}).soundUpRaw(soundBoth) - master.(fields{i}).soundUpRaw(1));
+    Bbar = mean(onDelay);
+    SStot = sum((onDelay - Bbar).^2);
+    SSres = sum((onDelay - pv).^2);
+    R2 = 1 - SSres/SStot;
+    title([fields{i} ', m = ' num2str(pf(1)) ', b = ' num2str(pf(2)) ', R^{2} = ' num2str(R2)]);
+    
 end
 
 % saveas(gcf,['/Volumes/AARON FILES/Two photon/2PM 003/AW000/AV 2P 20180926/v0figure.fig']);
