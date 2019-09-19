@@ -1,6 +1,45 @@
 
 sampleRate = 40e3;
 
+toneDuration = 5000;
+toneSamples = toneDuration*sampleRate/1000;
+
+fundFreq = 440;
+freqMax = 20000;
+numFreq = 10;
+overtoneAttn = 0.5;
+
+logRamp = logspace(-1,0,toneSamples);
+linRamp = linspace(0.5,1.5,toneSamples);
+
+freqList = logspace(log10(fundFreq),log10(freqMax),numFreq);
+freqList = fundFreq:fundFreq:freqMax;
+
+stimulus = zeros(1,toneSamples);
+
+for f=1:length(freqList)
+    coef = freqList(f)*2*pi/sampleRate;
+    period = sampleRate/freqList(f);
+    phaseOffset = randi(round(period),1);
+    tempStim = cos(coef*((1+phaseOffset):(toneSamples+phaseOffset))) * overtoneAttn^(f-1);
+%     tempStim = cos(coef*(1:toneSamples)) * overtoneAttn^(f-1);
+    stimulus = stimulus + tempStim;
+end
+stimulus = stimulus./max(abs(stimulus));
+stimulus = stimulus.*logRamp;
+
+figure;
+spectrogram(stimulus,[],[],[],sampleRate,'yaxis');
+ylim([0 20]);
+
+figure;periodogram(stimulus,[],[],sampleRate);
+
+figure;plot(stimulus);
+
+sound(stimulus,sampleRate);
+
+%%
+
 %Design stimulus parameters
 freq1 = 440;
 freq2 = 880;
