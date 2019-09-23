@@ -7,7 +7,6 @@ clear all;
 
 % Auditory stimulus parameters
 sampleFreq = 40000;
-fundFreq = 440;
 
 repeats = 1;
 stimDuration = 1; %seconds
@@ -48,11 +47,10 @@ loomRamp(2,:) = logspace(0,-2,soundSamples);
 loomRamp(3,:) = ones(1,soundSamples);
 loomRamp(4,:) = zeros(1,soundSamples);
 
-coef = fundFreq*2*pi/sampleFreq;
-soundApproach = applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(1,:),rampSamples).*10^(-attn/20);
-soundRecede = applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(2,:),rampSamples).*10^(-attn/20);
-soundStatic = applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(3,:),rampSamples).*10^(-attn/20);
-soundNone = applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(4,:),rampSamples).*10^(-attn/20);
+soundApproach = applyRamp_AMW((rand(1,soundSamples)*2-1).*loomRamp(1,:),rampSamples).*10^(-attn/20);
+soundRecede = applyRamp_AMW((rand(1,soundSamples)*2-1).*loomRamp(2,:),rampSamples).*10^(-attn/20);
+soundStatic = applyRamp_AMW((rand(1,soundSamples)*2-1).*loomRamp(3,:),rampSamples).*10^(-attn/20);
+soundNone = applyRamp_AMW((rand(1,soundSamples)*2-1).*loomRamp(4,:),rampSamples).*10^(-attn/20);
 
 preStimSamples = preStimSilence * sampleFreq;
 preStimTrigger = zeros(1,preStimSamples);
