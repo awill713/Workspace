@@ -6,6 +6,9 @@ repeats = 5;
 toneDuration = 1000;
 itiDuration = 1000;
 
+rampDuration = 5; %milliseconds
+attn = 0;
+
 fundFreq = 440;
 freqMax = 20000;
 numFreq = 10;
@@ -27,26 +30,32 @@ freqList = logspace(log10(fundFreq),log10(freqMax),numFreq);
 order = repmat([-1 0 1],[1 repeats]);
 order = order(randperm(length(order)));
 
+rampSamples = rampDuration*sampleRate/1000;
+
 stimulus = zeros(1,trialSamples*repeats);
 
 for e = 1:length(order)
     type = order(e);
     index = trialSamples*(e-1)+1;
     
-    tempStim = zeros(1,toneSamples);
-    for f=1:length(freqList)
-        coef = freqList(f)*2*pi/sampleRate;
-        period = sampleRate/freqList(f);
-        phaseOffset = randi(round(period),1);
-%         phaseOffset=0;
-
-        freqStim = cos(coef*((1+phaseOffset):(toneSamples+phaseOffset))) * overtoneAttn^(f-1);
-%         freqStim = sawtooth(coef*((1+phaseOffset):(toneSamples+phaseOffset))) * overtoneAttn^(f-1);
-        
-        %     tempStim = cos(coef*(1:toneSamples)) * overtoneAttn^(f-1);
-        tempStim = tempStim + freqStim;
-    end
-    tempStim = rand(1,toneSamples)*2-1;
+%     tempStim = zeros(1,toneSamples);
+%     for f=1:length(freqList)
+%         coef = freqList(f)*2*pi/sampleRate;
+%         period = sampleRate/freqList(f);
+%         phaseOffset = randi(round(period),1);
+% %         phaseOffset=0;
+% 
+%         freqStim = cos(coef*((1+phaseOffset):(toneSamples+phaseOffset))) * overtoneAttn^(f-1);
+% %         freqStim = sawtooth(coef*((1+phaseOffset):(toneSamples+phaseOffset))) * overtoneAttn^(f-1);
+%         
+%         %     tempStim = cos(coef*(1:toneSamples)) * overtoneAttn^(f-1);
+%         tempStim = tempStim + freqStim;
+%     end
+    
+    coef = fundFreq*2*pi/sampleRate;
+    tempStim = applyRamp_AMW(sawtooth(coef*(1:toneSamples),0.5),rampSamples).*10^(-attn/20);
+    
+    tempStim = applyRamp_AMW(rand(1,toneSamples)*2-1,rampSamples).*10^(-attn/20);
     
     tempStim = tempStim.*ramp(type+2,:);
     tempStim = tempStim./max(abs(tempStim));
@@ -72,4 +81,4 @@ subplot(2,3,1);plot(upStim);subplot(2,3,4);periodogram(upStim,[],[],sampleRate);
 subplot(2,3,2);plot(downStim);subplot(2,3,5);periodogram(downStim,[],[],sampleRate);
 subplot(2,3,3);plot(staticStim);subplot(2,3,6);periodogram(staticStim,[],[],sampleRate);
 
-sound(stimulus,sampleRate);
+% sound(stimulus,sampleRate);

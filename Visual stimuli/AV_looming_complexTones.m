@@ -134,7 +134,6 @@ startTime = PsychPortAudio('Start', pahandle, [], triggerTime+timeOffset,1);
 Priority(topPriorityLevel);
 
 for e = 1:length(lightOn)
-    eventsWithLight(e)
     timeOn = lightOn(e);
     timeOff = lightOff(e);
     direction = lightDirectionOrder(e);
