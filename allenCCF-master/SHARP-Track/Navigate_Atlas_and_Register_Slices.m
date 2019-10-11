@@ -8,7 +8,7 @@
 
 % directory of histology
 % processed_images_folder = 'C:\Drive\Histology\cfos\processed'; 
-processed_images_folder = '/Volumes/AARON FILES/Retrograde/Retro (Jennifer old)/Confocal/10-27-18/Tile series/Stacks/Image Registration/processed';
+processed_images_folder = 'D:\Retrograde\Retro 5 (antero)\Confocal\Whole slice\Image Registration\processed';
 
 % name the saved probe points, to avoid overwriting another set of probes going in the same folder
 probe_save_name_suffix = '_1'; 
@@ -18,10 +18,9 @@ probe_save_name_suffix = '_1';
 % structure_tree_location = 'C:\Drive\Histology\for tutorial\structure_tree_safe_2017.csv';
 % template_volume_location = 'C:\Drive\Histology\for tutorial\template_volume_10um.npy';
 
-annotation_volume_location = '/Users/Aaron/Documents/MATLAB/GeffenCode/allenCCF-master/annotation_volume_10um_by_index.npy';
-structure_tree_location = '/Users/Aaron/Documents/MATLAB/GeffenCode/allenCCF-master/structure_tree_safe_2017.csv';
-template_volume_location = '/Users/Aaron/Documents/MATLAB/GeffenCode/allenCCF-master/template_volume_10um.npy';
-
+annotation_volume_location = 'C:\Users\Aaron\Documents\MATLAB\Workspace\allenCCF-master\annotation_volume_10um_by_index.npy';
+structure_tree_location = 'C:\Users\Aaron\Documents\MATLAB\Workspace\allenCCF-master\structure_tree_safe_2017.csv';
+template_volume_location = 'C:\Users\Aaron\Documents\MATLAB\Workspace\allenCCF-master\template_volume_10um.npy';
 
 %% GET PROBE TRAJECTORY POINTS
 

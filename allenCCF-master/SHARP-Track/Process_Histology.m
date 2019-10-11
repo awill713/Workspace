@@ -8,16 +8,16 @@
 % * remember to run one cell at a time, instead of the whole script at once *
 
 % directory of histology images
-image_folder = '/Volumes/AARON FILES/Retrograde/Retro (Jennifer old)/Confocal/10-27-18/Tile Series/Stacks/';
+image_folder = 'D:\Retrograde\Retro 5 (antero)\Confocal\Whole slice\';
 
 % directory to save the processed images -- can be the same as the above image_folder
 % results will be put inside a new folder called 'processed' inside of this image_folder
-save_folder = '/Volumes/AARON FILES/Retrograde/Retro (Jennifer old)/Confocal/10-27-18/Tile Series/Stacks/Image Registration/';
+save_folder = 'D:\Retrograde\Retro 5 (antero)\Confocal\Whole slice\Image Registration\';
 
 % name of images, in order anterior to posterior or vice versa
 % once these are downsampled they will be named ['original name' '_processed.tif']
 image_file_names = dir([image_folder filesep '*.tif']); % get the contents of the image_folder
-image_file_names = natsortfiles({image_file_names.name});
+image_file_names = sort({image_file_names.name});
 % image_file_names = {'slide no 2_RGB.tif','slide no 3_RGB.tif','slide no 4_RGB.tif'}; % alternatively, list each image in order
 
 % if the images are individual slices (as opposed to images of multiple
@@ -30,7 +30,7 @@ use_already_downsampled_image = false;
 % pixel size parameters: microns_per_pixel of large images in the image
 % folder (if use_already_downsampled_images is set to false);
 % microns_per_pixel_after_downsampling should typically be set to 10 to match the atlas
-microns_per_pixel = 1.25;
+microns_per_pixel = 1.25; %but perhaps 0.93um/pixel???
 microns_per_pixel_after_downsampling = 10;
 
 
