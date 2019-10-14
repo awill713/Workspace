@@ -142,3 +142,5 @@ octave-workspace
 
 *.avi
 *.mp4
+allenCCF-master/annotation_volume_10um_by_index.npy
+allenCCF-master/template_volume_10um.npy
