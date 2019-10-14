@@ -8,7 +8,7 @@
 
 % directory of histology
 % processed_images_folder = 'C:\Drive\Histology\cfos\processed'; 
-processed_images_folder = 'D:\Retrograde\Retro 5 (antero)\Confocal\Whole slice\Image Registration\processed';
+processed_images_folder = 'D:\Retrograde\Retro 5 (antero)\Confocal\Zoomed in tdTomato\Z-proj images\Image Registration\processed';
 
 % name the saved probe points, to avoid overwriting another set of probes going in the same folder
 probe_save_name_suffix = '_1'; 

@@ -8,11 +8,11 @@
 % * remember to run one cell at a time, instead of the whole script at once *
 
 % directory of histology images
-image_folder = 'D:\Retrograde\Retro 5 (antero)\Confocal\Whole slice\';
+image_folder = 'D:\Retrograde\Retro 5 (antero)\Confocal\Zoomed in tdTomato\Z-proj images\';
 
 % directory to save the processed images -- can be the same as the above image_folder
 % results will be put inside a new folder called 'processed' inside of this image_folder
-save_folder = 'D:\Retrograde\Retro 5 (antero)\Confocal\Whole slice\Image Registration\';
+save_folder = 'D:\Retrograde\Retro 5 (antero)\Confocal\Zoomed in tdTomato\Z-proj images\Image Registration\';
 
 % name of images, in order anterior to posterior or vice versa
 % once these are downsampled they will be named ['original name' '_processed.tif']
@@ -30,7 +30,7 @@ use_already_downsampled_image = false;
 % pixel size parameters: microns_per_pixel of large images in the image
 % folder (if use_already_downsampled_images is set to false);
 % microns_per_pixel_after_downsampling should typically be set to 10 to match the atlas
-microns_per_pixel = 1.25; %but perhaps 0.93um/pixel???
+microns_per_pixel = 0.47; %but perhaps 0.93um/pixel???, originally 1.25?
 microns_per_pixel_after_downsampling = 10;
 
 
