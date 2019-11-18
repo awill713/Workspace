@@ -3,19 +3,19 @@ clear;
 
 experiment = 'EP001';
 mouseID = 'AW093';
-session = 'Session1';
-date = '20191029';
-stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20190623_multiAmpTones_opto_ONE_REPEAT_70dB_400k_005_stimInfo';
+session = 'Session3';
+date = '20191104-2';
+stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20191103_multiAmpTones_opto_1msPulse_ONE_REPEAT_70dB_400k_005_stimInfo';
 analysisWindow = [-50 200];
 quantWindow = [0 30]; %ms after stimulus onset
 rasterHeatMap = 'jet';
 
 % dataFolder = fullfile('D:\KiloSort\',mouseID,session,date,'SpikeMat');
-dataFolder = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
+dataFolder = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
 dataFiles = dir(fullfile(dataFolder,'*multAmpTones_opto*'));
 
 % newDir = fullfile('D:\KiloSort\',mouseID,session,date,'OptoMultiAmpToneResponses');
-newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'OptoMultiAmpToneResponses');
+newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'OptoMultiAmpToneResponses');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);
@@ -41,7 +41,7 @@ map = colormap(rasterHeatMap);close;
 stimInfo.index(100,4)=0;
 stimInfo.index(200,4)=1;
 
-for n = 84:totalUnits
+for n = 1:totalUnits
     n
     nData = load(fullfile(dataFiles(n).folder,dataFiles(n).name));
     eventTimes = nData.Events;

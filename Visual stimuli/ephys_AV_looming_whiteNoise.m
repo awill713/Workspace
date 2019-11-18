@@ -23,7 +23,6 @@ load(filterName);
 
 % Auditory stimulus parameters
 sampleRate = 400e3;
-fundFreq = 10000;
 dbRange = [50 70];
 
 avOffset = 41; %milliseconds
@@ -71,11 +70,10 @@ loomRamp(4,:) = zeros(1,soundSamples);
 isiVector = zeros(1,isi*sampleRate-avOffset*sampleRate/1000);
 eventVector = [zeros(1,avOffset*sampleRate/1000) ones(1,stimDuration*sampleRate)*5 isiVector];
 
-coef = fundFreq*2*pi/sampleRate;
-soundApproach = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(1,:),rampSamples) isiVector];
-soundRecede = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(2,:),rampSamples) isiVector];
-soundStatic = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(3,:),rampSamples) isiVector];
-soundNone = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(4,:),rampSamples) isiVector];
+soundApproach = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(randn(1,soundSamples).*loomRamp(1,:),rampSamples) isiVector];
+soundRecede = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(randn(1,soundSamples).*loomRamp(2,:),rampSamples) isiVector];
+soundStatic = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(randn(1,soundSamples).*loomRamp(3,:),rampSamples) isiVector];
+soundNone = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(randn(1,soundSamples).*loomRamp(4,:),rampSamples) isiVector];
 
 % soundApproach = [conv(soundApproach,FILT,'same'); eventVector];
 % soundRecede = [conv(soundRecede,FILT,'same'); eventVector];
@@ -186,14 +184,13 @@ stimInfo.ISI = isi;
 stimInfo.preStimSilence = preStimSilence;
 stimInfo.repeats = repeats;
 stimInfo.eventTimes = eventTimes;
-stimInfo.fundFreq = fundFreq;
 stimInfo.dbRange = dbRange;
 stimInfo.circleColor = circleColor;
 stimInfo.circleMinMax = circleMinMax;
 stimInfo.filter = filterName;
 stimInfo.monitorFrameRate = ifi;
 
-fileName = [recDate '_' mouse '_AVloomingComplexTones_stimInfo10000'];
+fileName = [recDate '_' mouse '_AVloomingWhiteNoise_stimInfo'];
 
 if ~exist(saveFolder, 'dir')
    mkdir(saveFolder)

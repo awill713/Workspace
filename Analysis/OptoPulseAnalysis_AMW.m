@@ -3,8 +3,8 @@ clear;
 
 experiment = 'EP001';
 mouseID = 'AW093';
-session = 'Session1';
-date = '20191029';
+session = 'Session2';
+date = '20191104-2';
 % stimPath = 'D:\Code\Aaron\StimInfo\20190623_optoLaserPulse_1and5ms_400k_005_stimInfo';
 stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20190623_optoLaserPulse_1and5ms_400k_005_stimInfo';
 analysisWindow = [-50 200]; %ms relative to stimulus onset
@@ -16,11 +16,11 @@ rasterColors = [0 0.447 0.741;... %blue
 
 % dataFolder = fullfile('D:\KiloSort\',mouseID,session,date,'SpikeMat');
 % dataFolder = 'D:\Electrophysiology\EP001\AW091\20191021';
-dataFolder = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
+dataFolder = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
 dataFiles = dir(fullfile(dataFolder,'*optoLaserPulse*'));
 
 % newDir = fullfile('D:\KiloSort\',mouseID,session,date,'OptoLaserResponses');
-newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'OptoLaserResponses');
+newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'OptoLaserResponses');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);
@@ -36,10 +36,10 @@ totalUnits = length(dataFiles);
 
 analysisEdges = analysisWindow*1000;
 quantificationEdges = quantWindow*1000; %temporal resolution of cheetah acquisition is microseconds
-binCount = (analysisWindow(2)-analysisWindow(1))/frBinWidth; %NOT a sliding window, should adjust to be sliding in the future
+binCount = analysisWindow(2)-analysisWindow(1)-frBinWidth+1; %sliding window
 binScalar = 1000/frBinWidth;
-binEdges = analysisWindow(1):frBinWidth:analysisWindow(2);
-frScalar = 1000/(quantWindow(2)-quantWindow(1));
+binEdges = analysisWindow(1)+frBinWidth:1:analysisWindow(2);
+frScalar = 1000/frBinWidth;
 
 optoResponsiveUnits = [];
 optoResponsiveSingleUnits = [];
@@ -73,13 +73,19 @@ for n = 1:totalUnits
             tempY = tempY+1;
             
             time = eventTimes(durEvents(e));
-            alignedSpikes = spikeTimes-time;
-            trialSpikes = alignedSpikes(find(alignedSpikes>analysisEdges(1) & alignedSpikes<analysisEdges(end)));
-            rasterX = [rasterX trialSpikes/1000];
+            alignedSpikes = (spikeTimes-time)/1000;
+            trialSpikes = alignedSpikes(find(alignedSpikes>analysisWindow(1) & alignedSpikes<analysisWindow(end)));
+            rasterX = [rasterX trialSpikes];
             rasterY = [rasterY repmat(tempY,[1 length(trialSpikes)])];
             
-            frTrain(e,:) = histcounts(trialSpikes/1000,binEdges);
-            prePost(e,1) = histcounts(trialSpikes/1000,[baselineWindow(1) baselineWindow(2)]);
+            for b = 1:binCount
+                timeMin = analysisWindow(1)+b-1;
+                timeMax = timeMin+frBinWidth;
+                frTrain(e,b) = length(find(alignedSpikes>timeMin & alignedSpikes<timeMax));
+            end
+            
+%             frTrain(e,:) = histcounts(trialSpikes/1000,binEdges);
+            prePost(e,1) = histcounts(trialSpikes,[baselineWindow(1) baselineWindow(2)]);
 %             prePost(e,2) = histcounts(trialSpikes/1000,[quantWindow(1) quantWindow(2)]);
 %             prePost(e,2) = max(frTrain(e,(analysisWindow(1)/frBinWidth)*sign(analysisWindow(1))+1:end));
         end
@@ -109,6 +115,7 @@ for n = 1:totalUnits
     unitData(n).optoResponse = optoResponse;
     unitData(n).optoFR = optoFR;
     unitData(n).type = nData.CellInfo(6);
+    
     if h(1) || h(2)
         optoResponsiveUnits = [optoResponsiveUnits nData.CellInfo(4)];
         if nData.CellInfo(6)==1
@@ -117,7 +124,7 @@ for n = 1:totalUnits
             optoResponsiveMultiUnits = [optoResponsiveMultiUnits nData.CellInfo(4)];
         end
         sigPeak = peakBin(h==1); %in the case of responsive to one duration and not the other, only take the responsive one
-        lat = (min(sigPeak)-1)*frBinWidth + analysisWindow(1);
+        lat = binEdges(1) + min(sigPeak) - 1; %(min(sigPeak)-1)*frBinWidth + analysisWindow(1);
         latencies = [latencies; nData.CellInfo(4) lat];
     end
     if nData.CellInfo(6)==1
@@ -138,7 +145,7 @@ for n = 1:totalUnits
     
     subplot(1,3,2); hold on;
     for d = 1:size(optoFR,1)
-        plot(binEdges(2:end)-frBinWidth/2,optoFR(d,:),'Color',optoRaster{d,3});
+        plot(binEdges,optoFR(d,:),'Color',optoRaster{d,3});
     end
     xlabel('Time (ms)');
     ylabel('Firing rate (Hz)');
@@ -161,12 +168,14 @@ for n = 1:totalUnits
     close(f1);
 end
 
-f2 = figure;
-histogram(latencies(:,2));
-xlabel('Latency to response (ms)');
-ylabel('Number of units');
-title('Latency of response to opto stimulation');
-saveas(f2,fullfile(newDir,'ResponseLatencyHistogram.fig'));
+if length(latencies)~=0
+    f2 = figure;
+    histogram(latencies(:,2));
+    xlabel('Latency to response (ms)');
+    ylabel('Number of units');
+    title('Latency of response to opto stimulation');
+    saveas(f2,fullfile(newDir,'ResponseLatencyHistogram.fig'));
+end
 
 
 analysisParams.mouseID = mouseID;
@@ -183,4 +192,5 @@ responsiveUnits.optoResponsiveMultiUnits = optoResponsiveMultiUnits;
 responsiveUnits.totalUnits = totalUnits;
 responsiveUnits.singleUnits = singleUnits;
 responsiveUnits.multiUnits = multiUnits;
+responsiveUnits.latencies = latencies;
 save(fullfile(newDir,'OptoResponseData.mat'),'unitData','analysisParams','responsiveUnits');

@@ -2,22 +2,22 @@
 clear;
 
 experiment = 'EP001';
-mouseID = 'AW087';
-session = 'Session1';
-date = '20190709';
+mouseID = 'AW093';
+session = 'Session2';
+date = '20191104-2';
 % stimPath = 'D:\Code\Aaron\StimInfo\20190621_noise_optoOffset_50rep_70dB_400k_005_stimInfo';
-stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20190621_noise_optoOffset_50rep_70dB_400k_005_stimInfo';
+stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20191103_noise_optoOffset_25msPulse_50rep_70dB_400k_005_stimInfo';
 analysisWindow = [-50 200]; %ms relative to stimulus onset
 quantWindow = [20 40]; %ms after stimulus onset
 frBinWidth = 10; %ms
 baselineWindow = [-10 0];
 
 % dataFolder = fullfile('D:\KiloSort\',mouseID,session,folder,'SpikeMat');
-dataFolder = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
-dataFiles = dir(fullfile(dataFolder,'*noise_optoOffset*'));
+dataFolder = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
+dataFiles = dir(fullfile(dataFolder,'*noise_optoOffset_25ms*'));
 
 % newDir = fullfile('D:\KiloSort\',mouseID,session,folder,'OptoNoiseResponses');
-newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'OptoNoiseResponses');
+newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'OptoNoiseResponses_25ms');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);

@@ -5,13 +5,15 @@ clear all;
 daqreset;
 
 %% Design stuff
-stimDur = 1; %seconds
+stimDur = 4; %seconds
 isi = 1; %seconds
 preStimSilence = 5; %seconds
-repeats = 10;
+repeats = 100;
 
 sampleRate = 400e3;
 rampDuration = 5; %milliseconds
+
+avOffset = 0; %milliseconds
 
 soundInputChannel = 1;
 lightInputChannel = 5;
@@ -21,18 +23,15 @@ filterPath = 'D:\GitHub\filters\20191008_ephysBoothSpkr_300-70k_fs400k_TESTACTUA
 % load(filterPath);
 
 %% Generate auditory stimulus
-stimulusSamples = (repeats*(stimDur + isi)+preStimSilence)*sampleRate;
-soundStimulus = zeros(1,stimulusSamples);
 eventTimeSeconds = [0:repeats-1]*(stimDur+isi) + preStimSilence;
 eventTimeSamples = eventTimeSeconds*sampleRate;
 rampSamples = rampDuration*sampleRate/1000;
 
 noiseSamples = stimDur*sampleRate;
 noise = applyRamp_AMW(randn(1,noiseSamples),rampSamples);
-for r = 1:repeats
-    sampleStart = eventTimeSamples(r)+1;
-    soundStimulus(sampleStart:sampleStart+noiseSamples-1) = noise;
-end
+
+soundStimulus = [zeros(1,avOffset*sampleRate/1000) noise zeros(1,isi*sampleRate-avOffset*sampleRate/1000)];
+% soundStimulus = [noise zeros(1,isi*sampleRate)];
 
 % soundStimulus = conv(soundStimulus,FILT,'same');
 
@@ -42,12 +41,10 @@ session.Rate = sampleRate;
 addAnalogOutputChannel(session,'dev3',soundOutputChannel,'Voltage');
 addAnalogInputChannel(session,'dev3',[soundInputChannel lightInputChannel],'Voltage');
 session.Channels(2).InputType = 'SingleEnded';
+session.Channels(3).InputType = 'SingleEnded';
 
 fid1 = fopen('log.bin','w');
 session.addlistener('DataAvailable',@(src,event) logData(src,event,fid1));
-
-% session.IsContinuous = true;
-session.queueOutputData(soundStimulus');
 
 %% Setup Psychtoolbox visual stuff
 
@@ -72,7 +69,7 @@ topPriorityLevel = MaxPriority(window);
 lightOn = eventTimeSeconds;
 lightOff = lightOn + stimDur;
 % 
-% visStimFrames = round(stimDur/ifi);
+visStimFrames = round(stimDur/ifi);
 % circleSizeList(1,:) = linspace(circleMinMax(1),circleMinMax(2),visStimFrames); %approaching
 % circleSizeList(2,:) = linspace(circleMinMax(2),circleMinMax(1),visStimFrames); %receding
 % circleSizeList(3,:) = ones(1,visStimFrames).*(sum(circleMinMax)/2); %static
@@ -81,27 +78,26 @@ lightOff = lightOn + stimDur;
 disp('Hit a key to begin stimulus presentation');
 triggerTime = KbStrokeWait;
 
-disp('Presenting stimulus');
-
-session.startBackground();
-
-Priority(topPriorityLevel);
-
-for e = 1:length(lightOn)
-    timeOn = lightOn(e);
-    timeOff = lightOff(e);
+for r = 1:repeats
+    session.queueOutputData(soundStimulus');
+    wait(session);
+    
+    session.startBackground();
     
     Screen('FillRect',window,white);
-    vbl = Screen('Flip',window,triggerTime + timeOn - 0.5*ifi);
+    vbl = Screen('Flip',window);
     Screen('DrawingFinished',window);
     
     Screen('FillRect',window,black);
-    vbl = Screen('Flip',window,triggerTime + timeOff - 0.5*ifi);
+    vbl = Screen('Flip',window,vbl+stimDur);
     Screen('DrawingFinished',window);
+    
+    wait(session);
+    
 end
 
 disp('Finished stimulus presentation');
-
+fclose(fid1);
 sca;
 
 %% Analyze timing
@@ -119,8 +115,9 @@ figure; hold on;
 plot(soundInput);
 plot(lightInput);
 
-baselineSoundVolt = max(soundInput(1:2e6));
-soundVoltThresh = baselineSoundVolt*1.5;
+baselineSoundVolt = max(soundInput((end-sampleRate*isi*0.2):end));
+baselineSoundVolt = max(soundInput(1:0.3*isi*sampleRate));
+soundVoltThresh = baselineSoundVolt*50;
 soundTimeThresh = 0.5*sampleRate*isi;
 thresh = soundInput>soundVoltThresh;
 supraThresh = find(thresh==1);

@@ -5,30 +5,27 @@
 % (session.startBackground()). Incorporate a delay in the sound stimulus in
 % order to account for the delay in starting the visual stimulus relative
 % to sound stimulus using this method, usually ~40-50ms. This stimulus
-% seems to be ~41ms.
-
+% seems to be ~41ms
 
 sca;
 close all;
 clear all;
 daqreset;
 
-mouse = 'AW102';
+mouse = 'AW000';
 recDate = num2str(yyyymmdd(datetime));
-saveFolder = fullfile('D:\data\',mouse,recDate);
-filterName = 'D:\GitHub\filters\20191029_ephysBoothSpkrRight_300-80k_fs400k';
+saveFolder = fullfile('D:\stimuli\Aaron',mouse,recDate);
+filterName = 'D:\GitHub\filters\20191008_ephysBoothSpkr_300-70k_fs400k_TESTACTUAL';
 load(filterName);
 
 %% Input stimulus parameters
 
 % Auditory stimulus parameters
-sampleRate = 400e3;
-fundFreq = 10000;
-dbRange = [50 70];
+sampleFreq = 400e3;
+fundFreq = 440;
+dbRange = [60 80];
 
-avOffset = 41; %milliseconds
-
-repeats = 20;
+repeats = 3;
 stimDuration = 1; %seconds
 isi = 3; %seconds, interstimulus interval
 
@@ -38,11 +35,13 @@ rampDuration = 5; %milliseconds
 % Visual stimulus parameters
 circleColor = [0 0 0];
 
-circleMinMax = [50 700]; %pixel size
+circleMinMax = [100 1000]; %pixel size
 maxDiameter = max(circleMinMax)*1.01;
 
 %Nidaq settings
 channelsOut = [0 1]; %speaker and events, respectively
+soundInputChannel = 1;
+lightInputChannel = 5;
 
 %% Generate stimulus indexing, order, and event times
 index(:,1) = 1:16;
@@ -60,27 +59,28 @@ for i = 2:length(order)
 end
 
 %% Make sound stim (approaching, receding, silence, prestimulus trigger)
-soundSamples = stimDuration*sampleRate;
-rampSamples = rampDuration*sampleRate/1000;
+soundSamples = stimDuration*sampleFreq;
+rampSamples = rampDuration*sampleFreq/1000;
+attn = 0;
 
 loomRamp(1,:) = logspace((dbRange(1)-70)/20,(dbRange(2)-70)/20,soundSamples);
 loomRamp(2,:) = logspace((dbRange(2)-70)/20,(dbRange(1)-70)/20,soundSamples);
 loomRamp(3,:) = ones(1,soundSamples);
 loomRamp(4,:) = zeros(1,soundSamples);
 
-isiVector = zeros(1,isi*sampleRate-avOffset*sampleRate/1000);
-eventVector = [zeros(1,avOffset*sampleRate/1000) ones(1,stimDuration*sampleRate)*5 isiVector];
+isiVector = zeros(1,isi*sampleFreq);
+eventVector = [zeros(1,stimDuration*sampleFreq)*5 isiVector];
 
-coef = fundFreq*2*pi/sampleRate;
-soundApproach = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(1,:),rampSamples) isiVector];
-soundRecede = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(2,:),rampSamples) isiVector];
-soundStatic = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(3,:),rampSamples) isiVector];
-soundNone = [zeros(1,avOffset*sampleRate/1000) applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(4,:),rampSamples) isiVector];
+coef = fundFreq*2*pi/sampleFreq;
+soundApproach = [applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(1,:),rampSamples).*10^(-attn/20) isiVector];
+soundRecede = [applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(2,:),rampSamples).*10^(-attn/20) isiVector];
+soundStatic = [applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(3,:),rampSamples).*10^(-attn/20) isiVector];
+soundNone = [applyRamp_AMW(sawtooth(coef*(1:soundSamples),0.5).*loomRamp(4,:),rampSamples).*10^(-attn/20) isiVector];
 
-% soundApproach = [conv(soundApproach,FILT,'same'); eventVector];
-% soundRecede = [conv(soundRecede,FILT,'same'); eventVector];
-% soundStatic = [conv(soundStatic,FILT,'same'); eventVector];
-% soundNone = [conv(soundNone,FILT,'same'); eventVector];
+% soundApproach = [conv(soundApproach,FILT,'same')/10; eventVector];
+% soundRecede = [conv(soundRecede,FILT,'same')/10; eventVector];
+% soundStatic = [conv(soundStatic,FILT,'same')/10; eventVector];
+% soundNone = [conv(soundNone,FILT,'same')/10; eventVector];
 
 soundApproach = [soundApproach; eventVector];
 soundRecede = [soundRecede; eventVector];
@@ -89,17 +89,18 @@ soundNone = [soundNone; eventVector];
 
 soundDatabase = {soundApproach;soundRecede;soundStatic;soundNone};
 
-%% Make TTL to tell Cheetah the stimulus is beginning, arbitrary length
-
-ttlLength = 500; %ms
-initialTTL = [zeros(1,ttlLength/2*sampleRate/1000) ones(1,ttlLength*sampleRate/1000)*5 zeros(1,ttlLength/2*sampleRate/1000)];
-initialTTL = [zeros(1,length(initialTTL)); initialTTL];
-
 %% Initialize NIDAQ session and load soundStimulus
 session = daq.createSession('ni');
-session.Rate = sampleRate;
+session.Rate = sampleFreq;
 
 addAnalogOutputChannel(session,'dev3',channelsOut,'Voltage');
+addAnalogInputChannel(session,'dev3',[soundInputChannel lightInputChannel],'Voltage');
+session.Channels(3).InputType = 'SingleEnded';
+session.Channels(4).InputType = 'SingleEnded';
+
+fid1 = fopen('log.bin','w');
+session.addlistener('DataAvailable',@(src,event) logData(src,event,fid1));
+
 
 %% Setup Psychtoolbox visual stuff
 
@@ -111,7 +112,7 @@ black = BlackIndex(screenNumber);
 white = WhiteIndex(screenNumber);
 grey = white / 2;
 
-% Screen('Preference', 'SkipSyncTests', 1);
+Screen('Preference', 'SkipSyncTests', 1);
 [window, windowRect] = PsychImaging('OpenWindow',screenNumber,grey);
 Screen('BlendFunction',window,'GL_SRC_ALPHA','GL_ONE_MINUS_SRC_ALPHA');
 
@@ -137,11 +138,9 @@ circleColorList = {circleColor;circleColor;circleColor;grey};
 
 
 %% Present stimulus
-session.queueOutputData(initialTTL');
 disp('Hit a key to begin stimulus presentation');
 triggerTime = KbStrokeWait;
 
-session.startBackground();
 disp('Presenting stimulus');
 
 pause(preStimSilence);
@@ -174,28 +173,72 @@ for evNum = 1:length(order)
 end
     
 disp('Finished stimulus presentation');
+fclose(fid1);
 sca;
 
 
 %% Save experiment info
-stimInfo.index = index;
-stimInfo.order = order;
-stimInfo.sampleRate = sampleRate;
-stimInfo.stimDuration = stimDuration;
-stimInfo.ISI = isi;
-stimInfo.preStimSilence = preStimSilence;
-stimInfo.repeats = repeats;
-stimInfo.eventTimes = eventTimes;
-stimInfo.fundFreq = fundFreq;
-stimInfo.dbRange = dbRange;
-stimInfo.circleColor = circleColor;
-stimInfo.circleMinMax = circleMinMax;
-stimInfo.filter = filterName;
-stimInfo.monitorFrameRate = ifi;
+exptInfo.index = index;
+exptInfo.order = order;
+exptInfo.sampleRate = sampleFreq;
+exptInfo.stimDuration = stimDuration;
+exptInfo.ISI = isi;
+exptInfo.preStimSilence = preStimSilence;
+exptInfo.repeats = repeats;
+exptInfo.eventTimes = eventTimes;
+exptInfo.fundFreq = fundFreq;
+exptInfo.dbRange = dbRange;
+exptInfo.circleColor = circleColor;
+exptInfo.circleMinMax = circleMinMax;
+exptInfo.filter = filterName;
+exptInfo.monitorFrameRate = ifi;
 
-fileName = [recDate '_' mouse '_AVloomingComplexTones_stimInfo10000'];
+fileName = [recDate '_' mouse '_AVloomingComplexTones_exptInfo'];
+% save(fullfile(saveFolder,fileName),'exptInfo');
 
-if ~exist(saveFolder, 'dir')
-   mkdir(saveFolder)
-end
-save(fullfile(saveFolder,fileName),'stimInfo');
+%% Analyze timing
+
+fid2 = fopen('log.bin','r');
+[data count] = fread(fid2,[3,inf],'double');
+fclose(fid2);
+
+soundInput = data(2,:);
+[fb, fa] = butter(5, 2*300 / sampleFreq, 'high');
+soundInput = filter(fb,fa,data(2,:));
+lightInput = data(3,:);
+
+figure; hold on;
+plot(soundInput);
+plot(lightInput);
+
+
+baselineSoundVolt = max(soundInput((end-sampleFreq*isi*00.5):end));
+soundVoltThresh = baselineSoundVolt*10;
+soundTimeThresh = 0.5*sampleFreq*isi;
+thresh = soundInput>soundVoltThresh;
+supraThresh = find(thresh==1);
+diffSupra = diff(supraThresh);
+longDiff = find(diffSupra>soundTimeThresh); 
+soundOnset = supraThresh([1 longDiff+1]);
+
+baselineLightVolt = max(soundInput(1:1.5e6));
+% lightVoltThresh = baselineLightVolt*1.5;
+lightVoltThresh = 0.7;
+lightTimeThresh = 0.2*sampleFreq*isi;
+thresh = lightInput<lightVoltThresh;
+supraThresh = find(thresh==1);
+diffSupra = diff(supraThresh);
+longDiff = find(diffSupra>lightTimeThresh);
+lightOnset = supraThresh([1 longDiff+1]);
+
+evSound = find(index(order,2)~=4); noSound = find(index(order,2)==4);
+evLight = find(index(order,3)~=4); noLight = find(index(order,3)==4);
+[~, soundNoLightIndx] = intersect(evSound,noLight);
+[~, lightNoSoundIndx] = intersect(evLight,noSound);
+soundOnset(soundNoLightIndx') = [];
+lightOnset(lightNoSoundIndx') = [];
+offset = (soundOnset - lightOnset)./sampleFreq *1000; %milliseconds
+figure;histogram(offset,'BinWidth',1)
+figure;plot(offset)
+mean(offset)
+
