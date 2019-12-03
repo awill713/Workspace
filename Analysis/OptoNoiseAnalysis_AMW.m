@@ -2,22 +2,20 @@
 clear;
 
 experiment = 'EP001';
-mouseID = 'AW093';
-session = 'Session2';
-date = '20191104-2';
-% stimPath = 'D:\Code\Aaron\StimInfo\20190621_noise_optoOffset_50rep_70dB_400k_005_stimInfo';
-stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20191103_noise_optoOffset_25msPulse_50rep_70dB_400k_005_stimInfo';
+mouseID = 'AW086';
+session = 'Session1';
+date = '20190815';
+stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20190621_noise_optoOffset_50rep_70dB_400k_005_stimInfo';
+% stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20191103_noise_optoOffset_25msPulse_50rep_70dB_400k_005_stimInfo';
 analysisWindow = [-50 200]; %ms relative to stimulus onset
-quantWindow = [20 40]; %ms after stimulus onset
 frBinWidth = 10; %ms
-baselineWindow = [-10 0];
 
 % dataFolder = fullfile('D:\KiloSort\',mouseID,session,folder,'SpikeMat');
 dataFolder = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
-dataFiles = dir(fullfile(dataFolder,'*noise_optoOffset_25ms*'));
+dataFiles = dir(fullfile(dataFolder,'*noise_optoOffset*'));
 
 % newDir = fullfile('D:\KiloSort\',mouseID,session,folder,'OptoNoiseResponses');
-newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'OptoNoiseResponses_25ms');
+newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'OptoNoiseResponses');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);
@@ -34,16 +32,15 @@ indices = stimInfo.index(:,1);
 totalUnits = length(dataFiles);
 
 binCount = analysisWindow(2)-analysisWindow(1)-frBinWidth+1; %sliding window
-binScalar = 1000/frBinWidth;
 binEdges = analysisWindow(1)+frBinWidth:1:analysisWindow(2);
-frScalar = 1000/(quantWindow(2)-quantWindow(1));
+frScalar = 1000/frBinWidth;
 
 soundResponsiveUnits = [];
 optoResponsiveUnits = [];
 interactUnits = [];
 singleUnits = [];
 multiUnits = [];
-bestDuration = zeros(1,totalUnits);
+bestOffset = zeros(1,totalUnits);
 
 rasterColorMap = 'cool';
 map = colormap(rasterColorMap);close;
@@ -60,7 +57,7 @@ for n = 1:totalUnits
     meanResponse = zeros(uniqueEvents,5); %index (1),  mean baseline (2), baseline std error (3), mean response (4), response std error (5),
     trialResponses = zeros(uniqueEvents,stimInfo.repeats);
     frTrain = zeros(uniqueEvents,binCount);
-    
+    frTrainTrials = zeros(uniqueEvnets,stimInfo.repeats,binCount);
     
     
     tempY = 0;
@@ -91,6 +88,7 @@ for n = 1:totalUnits
             end
             prePost(e,1) = histcounts(trialSpikes,[baselineWindow(1) baselineWindow(2)]+eventBaseline);
             prePost(e,2) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)]);
+            frTrainTrials(u,e,:) = spiekFR(e,b)*frScalar;
         end
         
         spikeRaster{u,1} = rasterX;
@@ -118,7 +116,7 @@ for n = 1:totalUnits
     unitData(n).neuronNumber = nData.CellInfo(4);
     
     [val ind] = max(meanResponse(3:end,4));
-    bestDuration(n) = ind;
+    bestOffset(n) = ind;
     
     if h(1)
         soundResponsiveUnits = [soundResponsiveUnits nData.CellInfo(4)];
@@ -191,8 +189,8 @@ end
 
 f2 = figure;
 subplot(1,3,1);hold on;
-histogram(bestDuration(singleUnits));
-histogram(bestDuration(multiUnits));
+histogram(bestOffset(singleUnits));
+histogram(bestOffset(multiUnits));
 xticks(1:7);
 xticklabels(optoOffsets);
 xlabel('Laser offset relative to sound (ms)');
