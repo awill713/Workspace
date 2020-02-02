@@ -1,13 +1,13 @@
 
 clear;
 
-experiment = 'EP002';
-mouseID = 'AW103';
-session = 'Session1';
-date = '20191120';
+experiment = 'EP003';
+mouseID = 'AW113';
+session = 'Session2';
+date = '20200120';
 % stimPath = 'D:\Code\Aaron\StimInfo\20190621_noise_optoOffset_50rep_70dB_400k_005_exptInfo';
 % stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20190621_noise_optoOffset_50rep_70dB_400k_005_exptInfo';
-stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVloomingComplexTones_stimInfo5070']);
+stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVloomingComplexTones_stimInfo']);
 analysisWindow = [-50 2000]; %ms relative to stimulus onset
 peakQuantWindow = [0 100]; %ms after stimulus onset
 sustQuantWindow = [100 25]; % [ms after stimulus onset, ms after stimulus offset]
@@ -17,10 +17,10 @@ baselineWindow = [-10 0];
 % dataFolder = fullfile('D:\KiloSort\',mouseID,session,folder,'SpikeMat');
 dataFolder = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
 % dataFiles = dir(fullfile(dataFolder,'*noise_optoOffset*'));
-dataFiles = dir(fullfile(dataFolder,'*AV_looming_complexTones5070*'));
+dataFiles = dir(fullfile(dataFolder,'*AV_looming_complexTones*'));
 
 % newDir = fullfile('D:\KiloSort\',mouseID,session,folder,'OptoNoiseResponses');
-newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'AVLoomingComplexResponses_50-70dB');
+newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'AVLoomingComplexResponses');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);
@@ -64,7 +64,7 @@ for n = 1:totalUnits
     n
     nData = load(fullfile(dataFiles(n).folder,dataFiles(n).name));
     
-    if nData.CellInfo(6)==1
+%     if nData.CellInfo(6)==1
         eventTimes = nData.Events;
         spikeTimes = nData.SpikeData(1,:);
         
@@ -137,13 +137,13 @@ for n = 1:totalUnits
         neuronNumber = nData.CellInfo(4);
         
         %sustained response
-        anovaMatrix = zeros(40,4);
+        anovaMatrix = zeros(4*repeats,4);
         for i = 1:uniqueEvents
-            row = (ceil(i/4)-1)*10+1;
+            row = (ceil(i/4)-1)*repeats+1;
             column = mod(i-1,4)+1;
-            anovaMatrix(row:row+9,column) = sustTrialResponses(i,:);
+            anovaMatrix(row:row+(repeats-1),column) = sustTrialResponses(i,:);
         end
-        [p, table, stats] = anova2(anovaMatrix,10,'off');
+        [p, table, stats] = anova2(anovaMatrix,repeats,'off');
         if p(2)<0.05
             comparison = multcompare(stats,'estimate','row','display','off');
             if comparison(3,6)<0.05 || comparison(5,6)<0.05 || comparison(6,6)<0.05
@@ -167,11 +167,11 @@ for n = 1:totalUnits
         end
         
         %peak response
-        anovaMatrix = zeros(40,4);
+        anovaMatrix = zeros(4*repeats,4);
         for i = 1:uniqueEvents
-            row = (ceil(i/4)-1)*10+1;
+            row = (ceil(i/4)-1)*repeats+1;
             column = mod(i-1,4)+1;
-            anovaMatrix(row:row+9,column) = peakTrialResponses(i,:);
+            anovaMatrix(row:row+(repeats-1),column) = peakTrialResponses(i,:);
         end
         [p, table, stats] = anova2(anovaMatrix,10,'off');
         if p(2)<0.05
@@ -264,7 +264,7 @@ for n = 1:totalUnits
         close(f1);
         close(f2);
         close(f3);
-    end
+%     end
 end
 
 analysisParams.mouseID = mouseID;

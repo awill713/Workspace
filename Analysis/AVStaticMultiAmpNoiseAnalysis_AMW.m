@@ -1,10 +1,10 @@
 
 clear;
 
-experiment = 'EP002';
-mouseID = 'AW103';
+experiment = 'EP003';
+mouseID = 'AW113';
 session = 'Session2';
-date = '20191120';
+date = '20200120';
 stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVstaticMultiAmpNoise_stimInfo']);
 
 analysisWindow = [-50 200]; %ms relative to stimulus onset
@@ -190,10 +190,10 @@ for n = 1:totalUnits
         xlabel('Time (ms)');
         
         subplot(1,4,4);hold on;
-        plot(meanResponse(1:length(intensities),4),'Color',[0 0 0],'LineWidth',2);
-        plot(meanResponse(length(intensities)+1:2*(length(intensities)),4),'Color',[0 0 1],'LineWidth',2);
-%         errorbar(meanResponse(1:length(intensities),4),meanResponse(1:length(intensities),5),'Color',[0 0 0]);
-%         errorbar(meanResponse(length(intensities)+1:2*(length(intensities)),4),mean(length(intensities)+1:2*length(intensities),5),'Color',[0 0 1]);
+%         plot(meanResponse(1:length(intensities),4),'Color',[0 0 0],'LineWidth',2);
+%         plot(meanResponse(length(intensities)+1:2*(length(intensities)),4),'Color',[0 0 1],'LineWidth',2);
+        errorbar(meanResponse(1:length(intensities),4),meanResponse(1:length(intensities),5),'Color',[0 0 0],'LineWidth',2);
+        errorbar(meanResponse(length(intensities)+1:2*(length(intensities)),4),mean(length(intensities)+1:2*length(intensities),5),'Color',[0 0 1],'LineWidth',2);
         xticks(1:length(intensities));
         xticklabels(intensities)
         xlabel('Sound intensity (dB)');

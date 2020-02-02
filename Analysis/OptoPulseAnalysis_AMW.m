@@ -1,10 +1,10 @@
 
 clear;
 
-experiment = 'EP001';
-mouseID = 'AW093';
+experiment = 'EP003';
+mouseID = 'AW113';
 session = 'Session2';
-date = '20191104-2';
+date = '20200120';
 % stimPath = 'D:\Code\Aaron\StimInfo\20190623_optoLaserPulse_1and5ms_400k_005_stimInfo';
 stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20190623_optoLaserPulse_1and5ms_400k_005_stimInfo';
 analysisWindow = [-50 200]; %ms relative to stimulus onset
