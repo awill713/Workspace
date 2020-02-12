@@ -1,18 +1,18 @@
 
 clear;
 
-experiment = 'EP003';
-mouseID = 'AW112';
-session = 'Session2';
-date = '20200120';
+experiment = 'EP004';
+mouseID = 'AW118';
+session = 'Session1';
+date = '20200201';
 % stimPath = 'D:\Code\Aaron\StimInfo\20190621_noise_optoOffset_50rep_70dB_400k_005_exptInfo';
 % stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20190621_noise_optoOffset_50rep_70dB_400k_005_exptInfo';
 stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVloomingWhiteNoise_stimInfo']);
 analysisWindow = [-50 2000]; %ms relative to stimulus onset
-peakQuantWindow = [0 100]; %ms after stimulus onset
-sustQuantWindow = [100 25]; % [ms after stimulus onset, ms after stimulus offset]
+peakQuantWindow = [50 100]; %ms after stimulus onset
+sustQuantWindow = [100 0]; % [ms after stimulus onset, ms after stimulus offset]
 frBinWidth = 10; %ms
-baselineWindow = [-10 0];
+baselineWindow = [-20 0];
 
 % dataFolder = fullfile('D:\KiloSort\',mouseID,session,folder,'SpikeMat');
 dataFolder = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
