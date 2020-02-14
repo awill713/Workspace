@@ -2,13 +2,13 @@
 clear;
 
 experiment = 'EP004';
-mouseID = 'AW118';
+mouseID = 'AW117';
 session = 'Session1';
 date = '20200201';
 stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVdriftingGratingsWhiteNoise_stimInfo']);
 
 analysisWindow = [-100 1500]; %ms relative to stimulus onset
-quantWindow = [50 100]; %ms relative to stimulus onset
+quantWindow = [50 1000]; %ms relative to stimulus onset
 baselineWindow = [-20 0]; %ms relative to stimulus onset
 
 frBinWidth = 10; %ms
@@ -255,8 +255,8 @@ for n = 1:totalUnits
         ', Sound-modulated = ' num2str(pOrientation(2)) ', ' num2str(pOrientation(3))]});
     
     
-            saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.fig']));
-            saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.jpg']));
+%             saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.fig']));
+%             saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.jpg']));
             close(f1);
     
     if nData.CellInfo(6)~=0 && hLight
@@ -283,7 +283,7 @@ for n = 1:totalUnits
     end
 end
 
-for n = 1:totalNeurons
+for n = 1:totalUnits
     if unitData(n).type~=0 && ismember(unitData(n).neuronNumber,responsiveUnits.lightResponsiveUnits)
         responseVis = unitData(n).meanResponse(1:length(orientations),4);
         responseVisAud = unitData(n).meanResponse(length(orientations)+1:2*length(orientations),4);
@@ -372,7 +372,7 @@ title('Orientation UNselective (normalized)');
 legend({'Vis','Vis/Aud'});
 
 suptitle({'Population orientation preference, +/- white noise'});
-saveas(f2,fullfile(newDir,'Population orientation preference'));
+% saveas(f2,fullfile(newDir,'Population orientation preference'));
 
 
 analysisParams.mouseID = mouseID;
@@ -391,7 +391,7 @@ responsiveUnits.orientationSelectiveUnits = orientationSelectiveUnits;
 responsiveUnits.soundResponsiveFromANOVA = soundResponsiveFromANOVA;
 
 
-save(fullfile(newDir,'AVStaticMultiAmpNoiseData.mat'),'unitData','analysisParams','responsiveUnits');
+% save(fullfile(newDir,'AVDriftingGratingsWhiteNoiseData.mat'),'unitData','analysisParams','responsiveUnits');
 responsiveUnits
 
 
