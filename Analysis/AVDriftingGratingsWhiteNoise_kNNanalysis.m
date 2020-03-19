@@ -4,7 +4,7 @@ clear all;
 
 savePath = fullfile('E:\Electrophysiology','EP004');
 
-dataPaths{1} = fullfile('EP004','AW117','20200201');
+dataPaths{1} = fullfile('EP004','AW118','20200201');
 
 quantWindow = [50 1000]; %ms after stimulus onset
 
@@ -100,9 +100,10 @@ for dp = 1:length(dataPaths)
     end
 end
 
-figure;hold on;histogram(percentVis);histogram(percentVisAud);
+f = figure;hold on;histogram(percentVis);histogram(percentVisAud);
 title(['Train on ' num2str(trainingTrialsPercent) ', k = ' num2str(k_value) ', vis = ' num2str(mean(percentVis)) ', visAud = ' num2str(mean(percentVisAud))]);
-
+legend({'Light','Light/Sound'});
+% saveas(f,fullfile(savePath,'kNN analysis drifting gratings white noise'));
 % [h p] = ttest2(percentVis,percentVisAud);
 % pvalue(kkk) = p;
 % maxThing(kkk) = mean([percentVis percentVisAud]);

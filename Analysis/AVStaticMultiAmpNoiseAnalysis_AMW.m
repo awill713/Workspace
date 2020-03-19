@@ -1,10 +1,10 @@
 
 clear;
 
-experiment = 'EP003';
-mouseID = 'AW113';
+experiment = 'EP004';
+mouseID = 'AW115';
 session = 'Session2';
-date = '20200120';
+date = '20200222';
 stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVstaticMultiAmpNoise_stimInfo']);
 
 analysisWindow = [-50 200]; %ms relative to stimulus onset
@@ -54,157 +54,160 @@ map = colormap(rasterColorMap);close;
 optoColors = map(round(linspace(1,length(map),length(intensities)-1)),:);
 rasterColors = [0 0 0; optoColors];
 
+normalizedAud = [];
+normalizedAudVis = [];
+
 for n = 1:totalUnits
     n
     nData = load(fullfile(dataFiles(n).folder,dataFiles(n).name));
     
-        eventTimes = nData.Events;
-        spikeTimes = nData.SpikeData(1,:);
+    eventTimes = nData.Events;
+    spikeTimes = nData.SpikeData(1,:);
+    
+    spikeRaster = cell(uniqueEvents,3); %spike times (1), trial number (y-axis) (2), color (3)
+    meanResponse = zeros(uniqueEvents,5); %index (1),  mean baseline (2), baseline std (3), mean response (4), response std (5)
+    frTrain = zeros(uniqueEvents,binCount);
+    frTrainTrials = zeros(uniqueEvents,repeats,binCount);
+    quantTrials = zeros(uniqueEvents,repeats);
+    
+    for u = 1:uniqueEvents
+        eventID = indices(u);
+        eventsOfInterest = find(stimInfo.order==eventID);
         
-        spikeRaster = cell(uniqueEvents,3); %spike times (1), trial number (y-axis) (2), color (3)
-        meanResponse = zeros(uniqueEvents,5); %index (1),  mean baseline (2), baseline std (3), mean response (4), response std (5)
-        frTrain = zeros(uniqueEvents,binCount);
-        frTrainTrials = zeros(uniqueEvents,repeats,binCount);
-        quantTrials = zeros(uniqueEvents,repeats);
-
-        for u = 1:uniqueEvents
-            eventID = indices(u);
-            eventsOfInterest = find(stimInfo.order==eventID);
+        color = rasterColors(mod(u-1,size(rasterColors,1))+1,:);
+        
+        spikeFR = zeros(length(eventsOfInterest),binCount);
+        rasterX = [];
+        rasterY = [];
+        
+        prePost = zeros(length(eventsOfInterest),2);
+        tempY = mod(u-1,length(intensities))*repeats;
+        for e = 1:length(eventsOfInterest)
+            tempY = tempY+1;
             
-            color = rasterColors(mod(u-1,size(rasterColors,1))+1,:);
+            time = eventTimes(eventsOfInterest(e));
+            alignedSpikes = (spikeTimes-time)/1000; %temporal resolution of cheetah is in microseconds, converting to milliseconds
+            trialSpikes = alignedSpikes(find(alignedSpikes>analysisWindow(1) & alignedSpikes<analysisWindow(end)));
+            rasterX = [rasterX trialSpikes];
+            rasterY = [rasterY repmat(tempY,[1 length(trialSpikes)])];
             
-            spikeFR = zeros(length(eventsOfInterest),binCount);
-            rasterX = [];
-            rasterY = [];
-            
-            prePost = zeros(length(eventsOfInterest),2);
-            tempY = mod(u-1,length(intensities))*repeats;
-            for e = 1:length(eventsOfInterest)
-                tempY = tempY+1;
-                
-                time = eventTimes(eventsOfInterest(e));
-                alignedSpikes = (spikeTimes-time)/1000; %temporal resolution of cheetah is in microseconds, converting to milliseconds
-                trialSpikes = alignedSpikes(find(alignedSpikes>analysisWindow(1) & alignedSpikes<analysisWindow(end)));
-                rasterX = [rasterX trialSpikes];
-                rasterY = [rasterY repmat(tempY,[1 length(trialSpikes)])];
-                
-                for b = 1:binCount %sliding window
-                    timeMin = analysisWindow(1)+b-1;
-                    timeMax = timeMin+frBinWidth;
-                    spikeFR(e,b) = length(find(alignedSpikes>timeMin & alignedSpikes<timeMax));
-                end
-                prePost(e,1) = histcounts(trialSpikes,[baselineWindow(1) baselineWindow(2)]);
-                prePost(e,2) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)]);
-                quantTrials(u,e) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)])*quantScalar;
+            for b = 1:binCount %sliding window
+                timeMin = analysisWindow(1)+b-1;
+                timeMax = timeMin+frBinWidth;
+                spikeFR(e,b) = length(find(alignedSpikes>timeMin & alignedSpikes<timeMax));
             end
-            
-            spikeRaster{u,1} = rasterX;
-            spikeRaster{u,2} = rasterY;
-            spikeRaster{u,3} = color;
-            meanResponse(u,1) = eventID;
-            meanResponse(u,2) = mean(prePost(:,1))*quantScalar;
-            meanResponse(u,3) = std(prePost(:,1))*quantScalar/sqrt(repeats);
-            meanResponse(u,4) = mean(prePost(:,2))*quantScalar;
-            meanResponse(u,5) = std(prePost(:,2))*quantScalar/sqrt(repeats);
-            
-            frTrainTrials(u,:,:) = spikeFR*frScalar;
-            frTrain(u,:) = mean(spikeFR,1)*frScalar;
+            prePost(e,1) = histcounts(trialSpikes,[baselineWindow(1) baselineWindow(2)]);
+            prePost(e,2) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)]);
+            quantTrials(u,e) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)])*quantScalar;
         end
         
-        unitData(n).raster = spikeRaster;
-        unitData(n).meanResponse = meanResponse;
-        unitData(n).frTrain = frTrain;
-        unitData(n).frTrainTrials = frTrainTrials;
-        unitData(n).type = nData.CellInfo(6);
-        unitData(n).neuronNumber = nData.CellInfo(4);
-        neuronNumber = nData.CellInfo(4);
+        spikeRaster{u,1} = rasterX;
+        spikeRaster{u,2} = rasterY;
+        spikeRaster{u,3} = color;
+        meanResponse(u,1) = eventID;
+        meanResponse(u,2) = mean(prePost(:,1))*quantScalar;
+        meanResponse(u,3) = std(prePost(:,1))*quantScalar/sqrt(repeats);
+        meanResponse(u,4) = mean(prePost(:,2))*quantScalar;
+        meanResponse(u,5) = std(prePost(:,2))*quantScalar/sqrt(repeats);
         
-        if nData.CellInfo(6)==1
-            singleUnits = [singleUnits neuronNumber];
-        elseif nData.CellInfo(6)==2
-            multiUnits = [multiUnits neuronNumber];
-        end
+        frTrainTrials(u,:,:) = spikeFR*frScalar;
+        frTrain(u,:) = mean(spikeFR,1)*frScalar;
+    end
+    
+    unitData(n).raster = spikeRaster;
+    unitData(n).meanResponse = meanResponse;
+    unitData(n).frTrain = frTrain;
+    unitData(n).frTrainTrials = frTrainTrials;
+    unitData(n).type = nData.CellInfo(6);
+    unitData(n).neuronNumber = nData.CellInfo(4);
+    neuronNumber = nData.CellInfo(4);
+    
+    if nData.CellInfo(6)==1
+        singleUnits = [singleUnits neuronNumber];
+    elseif nData.CellInfo(6)==2
+        multiUnits = [multiUnits neuronNumber];
+    end
+    
+    
+    anovaMatrix = zeros(repeats*2,length(intensities));
+    for i = 1:uniqueEvents
+        row = floor((i-1)/length(intensities))*repeats+1;
+        column = mod(i-1,length(intensities))+1;
+        anovaMatrix(row:row+repeats-1,column) = quantTrials(i,:);
+    end
+    [p, table, stats] = anova2(anovaMatrix,repeats,'off');
+    if p(1)<0.05
+        soundResponsiveUnit = [soundResponsiveUnit neuronNumber];
+    end
+    if p(2)<0.05
+        lightResponsiveUnit = [lightResponsiveUnit neuronNumber];
+    end
+    if p(3)<0.05
+        interactUnit = [interactUnit neuronNumber];
+    end
+    
+    f1 = figure;
+    set(f1,'Position',[150 80 1250 700]);
+    subplot(1,4,1);
+    for r = 1:length(intensities)
+        scatter(spikeRaster{r,1},spikeRaster{r,2},[],spikeRaster{r,3},'.');
+        hold on;
+    end
+    xlim([analysisWindow(1) analysisWindow(end)]);
+    xlabel('Time (ms)');
+    ylabel('Trial type');
+    ylim([0 repeats*length(intensities)]);
+    title('Sound');
+    %         c = colorbar;
+    %         set(c,'YTick',[0 1]);
+    %         set(c,'YTickLabel',[intensities(1,1) intensities(1,end)])
+    %         ylabel(c,'Intensity (dB)');
+    
+    subplot(1,4,2);
+    for r = length(intensities)+1 : length(intensities)*2
+        scatter(spikeRaster{r,1},spikeRaster{r,2},[],spikeRaster{r,3},'.');
+        hold on;
+    end
+    xlim([analysisWindow(1) analysisWindow(end)]);
+    xlabel('Time (ms)');
+    ylabel('Trial type');
+    ylim([0 repeats*length(intensities)]);
+    title('Sound/Light');
+    %         c = colorbar;
+    %         colormap(rasterColorMap);
+    %         set(c,'YTick',[0 1]);
+    %         set(c,'YTickLabel',[intensities(1,1) intensities(1,end)])
+    %         ylabel(c,'Intensity (dB)');
+    
+    subplot(1,4,3);hold on;
+    psthScalar = 20/max(max(frTrain));
+    for i = 1:length(intensities)
+        trace = (frTrain(i,:)-mean(frTrain(i,baselineFirstBin:baselineLastBin)))*psthScalar + 20*(i-1);
+        plot(binEdges,trace,'Color',spikeRaster{i,3});
         
-        
-        anovaMatrix = zeros(repeats*2,length(intensities));
-        for i = 1:uniqueEvents
-            row = floor((i-1)/length(intensities))*repeats+1;
-            column = mod(i-1,length(intensities))+1;
-            anovaMatrix(row:row+repeats-1,column) = quantTrials(i,:);
-        end
-        [p, table, stats] = anova2(anovaMatrix,repeats,'off');
-        if p(1)<0.05
-            soundResponsiveUnit = [soundResponsiveUnit neuronNumber];
-        end
-        if p(2)<0.05
-            lightResponsiveUnit = [lightResponsiveUnit neuronNumber];
-        end
-        if p(3)<0.05
-            interactUnit = [interactUnit neuronNumber];
-        end
-        
-        f1 = figure;
-        set(f1,'Position',[150 80 1250 700]);
-        subplot(1,4,1);
-        for r = 1:length(intensities)
-            scatter(spikeRaster{r,1},spikeRaster{r,2},[],spikeRaster{r,3},'.');
-            hold on;
-        end
-        xlim([analysisWindow(1) analysisWindow(end)]);
-        xlabel('Time (ms)');
-        ylabel('Trial type');
-        ylim([0 repeats*length(intensities)]);
-        title('Sound');
-%         c = colorbar;
-%         set(c,'YTick',[0 1]);
-%         set(c,'YTickLabel',[intensities(1,1) intensities(1,end)])
-%         ylabel(c,'Intensity (dB)');
-        
-        subplot(1,4,2);
-        for r = length(intensities)+1 : length(intensities)*2
-            scatter(spikeRaster{r,1},spikeRaster{r,2},[],spikeRaster{r,3},'.');
-            hold on;
-        end
-        xlim([analysisWindow(1) analysisWindow(end)]);
-        xlabel('Time (ms)');
-        ylabel('Trial type');
-        ylim([0 repeats*length(intensities)]);
-        title('Sound/Light');
-%         c = colorbar;
-%         colormap(rasterColorMap);
-%         set(c,'YTick',[0 1]);
-%         set(c,'YTickLabel',[intensities(1,1) intensities(1,end)])
-%         ylabel(c,'Intensity (dB)');
-        
-        subplot(1,4,3);hold on;
-        psthScalar = 20/max(max(frTrain));
-        for i = 1:length(intensities)
-            trace = (frTrain(i,:)-mean(frTrain(i,baselineFirstBin:baselineLastBin)))*psthScalar + 20*(i-1);
-            plot(binEdges,trace,'Color',spikeRaster{i,3});
-            
-            trace = (frTrain(i+length(intensities),:)-mean(frTrain(i+length(intensities),baselineFirstBin:baselineLastBin)))*psthScalar + 20*(i-1);
-            plot(binEdges,trace,'Color',spikeRaster{i,3},'LineStyle','--');
-        end
-        yticks([]);
-        xlim([analysisWindow]);
-        xlabel('Time (ms)');
-        
-        subplot(1,4,4);hold on;
-%         plot(meanResponse(1:length(intensities),4),'Color',[0 0 0],'LineWidth',2);
-%         plot(meanResponse(length(intensities)+1:2*(length(intensities)),4),'Color',[0 0 1],'LineWidth',2);
-        errorbar(meanResponse(1:length(intensities),4),meanResponse(1:length(intensities),5),'Color',[0 0 0],'LineWidth',2);
-        errorbar(meanResponse(length(intensities)+1:2*(length(intensities)),4),mean(length(intensities)+1:2*length(intensities),5),'Color',[0 0 1],'LineWidth',2);
-        xticks(1:length(intensities));
-        xticklabels(intensities)
-        xlabel('Sound intensity (dB)');
-        legend({'Sound','Sound/Light'})
-        
-        suptitle(['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n) '), unitType = ' num2str(nData.CellInfo(6)) ', p = ' num2str(p) ]);
-
-        
-        saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.fig']));
-        saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.jpg']));
-        close(f1);
+        trace = (frTrain(i+length(intensities),:)-mean(frTrain(i+length(intensities),baselineFirstBin:baselineLastBin)))*psthScalar + 20*(i-1);
+        plot(binEdges,trace,'Color',spikeRaster{i,3},'LineStyle','--');
+    end
+    yticks([]);
+    xlim([analysisWindow]);
+    xlabel('Time (ms)');
+    
+    subplot(1,4,4);hold on;
+    %         plot(meanResponse(1:length(intensities),4),'Color',[0 0 0],'LineWidth',2);
+    %         plot(meanResponse(length(intensities)+1:2*(length(intensities)),4),'Color',[0 0 1],'LineWidth',2);
+    errorbar(meanResponse(1:length(intensities),4),meanResponse(1:length(intensities),5),'Color',[0 0 0],'LineWidth',2);
+    errorbar(meanResponse(length(intensities)+1:2*(length(intensities)),4),mean(length(intensities)+1:2*length(intensities),5),'Color',[0 0 1],'LineWidth',2);
+    xticks(1:length(intensities));
+    xticklabels(intensities)
+    xlabel('Sound intensity (dB)');
+    legend({'Sound','Sound/Light'})
+    
+    suptitle(['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n) '), unitType = ' num2str(nData.CellInfo(6)) ', p = ' num2str(p) ]);
+    
+    
+    %         saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.fig']));
+    %         saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.jpg']));
+    close(f1);
 end
 
 
@@ -220,6 +223,40 @@ analysisParams.baselineWindow = baselineWindow;
 responsiveUnits.soundResponsiveUnits = soundResponsiveUnit;
 responsiveUnits.lightResponsiveUnit = lightResponsiveUnit;
 responsiveUnits.interactUnit = interactUnit;
+responsiveUnits.multiUnits = multiUnits;
+responsiveUnits.singleUnits = singleUnits;
+
+
+
+for n = 1:totalUnits
+    if unitData(n).type~=0 && ismember(unitData(n).neuronNumber,responsiveUnits.soundResponsiveUnits)
+        responseAud = unitData(n).meanResponse(1:length(intensities),4)';
+        responseAudVis = unitData(n).meanResponse((1+length(intensities)):end,4)';
+        
+        maxResp = max(responseAud);
+        minResp = min(responseAud);
+        
+        normResponseAud = (responseAud-minResp)./(maxResp-minResp);
+        normResponseAudVis = (responseAudVis-minResp)./(maxResp-minResp);
+        
+        normalizedAud = [normalizedAud; normResponseAud];
+        normalizedAudVis = [normalizedAudVis; normResponseAudVis];
+    end
+end
+
+[pp, ~, ~] = anova2([normalizedAud;normalizedAudVis],size(normalizedAud,1),'off');
+f2 = figure;hold on;
+% errorbar(mean(normalizedAud),std(normalizedAud),'Color',[0 0 0]);
+% errorbar(mean(normalizedAudVis),std(normalizedAudVis),'Color',[0 0 1]);
+plot(1:length(intensities),mean(normalizedAud),'Color',[0 0 0],'LineWidth',2);
+plot(1:length(intensities),mean(normalizedAudVis),'Color',[0 0 1],'LineWidth',2);
+xticks(1:length(intensities));
+xticklabels(intensities);
+xlabel('Sound intensity (dB)');
+ylabel('Normalized firing rate');
+legend({'Sound','Sound/Light'})
+title(['Sound = ' num2str(pp(1)) ', light = ' num2str(pp(2)) ', interact = ' num2str(pp(3))]);
+saveas(f2,fullfile(newDir,'Population audiovisual response.fig'));
 
 
 save(fullfile(newDir,'AVStaticMultiAmpNoiseData.mat'),'unitData','analysisParams','responsiveUnits');

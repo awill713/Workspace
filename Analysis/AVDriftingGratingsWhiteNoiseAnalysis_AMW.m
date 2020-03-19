@@ -2,22 +2,23 @@
 clear;
 
 experiment = 'EP004';
-mouseID = 'AW117';
-session = 'Session1';
-date = '20200201';
-stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVdriftingGratingsWhiteNoise_stimInfo']);
+mouseID = 'AW124';
+session = 'Session2';
+date = '20200303-2';
+stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVdriftingGratingsWhiteNoise50Contrast_stimInfo']);
 
 analysisWindow = [-100 1500]; %ms relative to stimulus onset
-quantWindow = [50 1000]; %ms relative to stimulus onset
-baselineWindow = [-20 0]; %ms relative to stimulus onset
+quantWindow = [0 1000]; %ms relative to stimulus onset
+baselineWindow = [-90 0]; %ms relative to stimulus onset
+soundWindow = [0 200];
 
 frBinWidth = 10; %ms
 
 dataFolder = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
-dataFiles = dir(fullfile(dataFolder,'*AV_driftingGratings_whiteNoise*'));
+dataFiles = dir(fullfile(dataFolder,'*AV_driftingGratings50Contrast_whiteNoise*'));
 
 % newDir = fullfile('D:\KiloSort\',mouseID,session,folder,'OptoNoiseResponses');
-newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'AVDriftingGratingsWhiteNoise');
+newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'AVDriftingGratings50ContrastWhiteNoise');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);
@@ -130,7 +131,7 @@ for n = 1:totalUnits
         frTrain(u,:) = mean(spikeFR,1)*frScalar;
         
         if u==uniqueEvents
-            [hSound, pSound] = ttest2(prePost(:,1),prePost(:,2)); hSound(isnan(hSound)) = 0; pSound(isnan(pSound))= 1;
+            [hSound, pSound] = ttest2(prePost(:,1)*baselineScalar,prePost(:,2)*quantScalar); hSound(isnan(hSound)) = 0; pSound(isnan(pSound))= 1;
             if hSound
                 soundResponsiveUnits = [soundResponsiveUnits nData.CellInfo(4)];
             end
@@ -255,8 +256,8 @@ for n = 1:totalUnits
         ', Sound-modulated = ' num2str(pOrientation(2)) ', ' num2str(pOrientation(3))]});
     
     
-%             saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.fig']));
-%             saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.jpg']));
+            saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.fig']));
+            saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response plots.jpg']));
             close(f1);
     
     if nData.CellInfo(6)~=0 && hLight
@@ -264,7 +265,7 @@ for n = 1:totalUnits
         responseVisAud = meanResponse(length(orientations)+1:2*length(orientations),4);
         
         [peak ind] = max(responseVis);
-        targetIndex = ceil(length(orientations)/2) + 1;
+        targetIndex = floor(length(orientations)/2) + 1;
         
         realignedVis = circshift(responseVis,targetIndex - ind);
         realignedVis = [realignedVis; realignedVis(1)];
@@ -282,43 +283,43 @@ for n = 1:totalUnits
         normalizedVisAud = [normalizedVisAud; normVisAud'];
     end
 end
-
-for n = 1:totalUnits
-    if unitData(n).type~=0 && ismember(unitData(n).neuronNumber,responsiveUnits.lightResponsiveUnits)
-        responseVis = unitData(n).meanResponse(1:length(orientations),4);
-        responseVisAud = unitData(n).meanResponse(length(orientations)+1:2*length(orientations),4);
-        
-        [peak ind] = max(responseVis);
-        targetIndex = ceil(length(orientations)/2) + 1;
-        
-        realignedVis = circshift(responseVis,targetIndex - ind);
-        realignedVis = [realignedVis; realignedVis(1)];
-        realignedVisAud = circshift(responseVisAud,targetIndex - ind);
-        realignedVisAud = [realignedVisAud; realignedVisAud(1)];
-        
-        unNormalizedVis = [unNormalizedVis; realignedVis'];
-        unNormalizedVisAud = [unNormalizedVisAud; realignedVisAud'];
-        
-        respMin = min(realignedVis); respMax = max(realignedVis);
-        normVis = (realignedVis - respMin) / (respMax - respMin);
-        normVisAud = (realignedVisAud - respMin) / (respMax - respMin);
-        
-        normalizedVis = [normalizedVis; normVis'];
-        normalizedVisAud = [normalizedVisAud; normVisAud'];
-        
-        if ismember(unitData(n).neuronNumber,responsiveUnits.orientationSelectiveUnits)
-            unNormalizedVis_Orientation = [unNormalizedVis_Orientation; realignedVis'];
-            unNormalizedVisAud_Orientation = [unNormalizedVisAud_Orientation; realignedVisAud'];
-            normalizedVis_Orientation = [normalizedVis_Orientation; normVis'];
-            normalizedVisAud_Orientation = [normalizedVisAud_Orientation; normVisAud'];
-        else
-            unNormalizedVis_NoOrientation = [unNormalizedVis_NoOrientation; realignedVis'];
-            unNormalizedVisAud_NoOrientation = [unNormalizedVisAud_NoOrientation; realignedVisAud'];
-            normalizedVis_NoOrientation = [normalizedVis_NoOrientation; normVis'];
-            normalizedVisAud_NoOrientation = [normalizedVisAud_NoOrientation; normVisAud'];
-        end
-    end
-end
+% 
+% for n = 1:totalUnits
+%     if unitData(n).type~=0 && ismember(unitData(n).neuronNumber,responsiveUnits.lightResponsiveUnits)
+%         responseVis = unitData(n).meanResponse(1:length(orientations),4);
+%         responseVisAud = unitData(n).meanResponse(length(orientations)+1:2*length(orientations),4);
+%         
+%         [peak ind] = max(responseVis);
+%         targetIndex = floor(length(orientations)/2) + 1;
+%         
+%         realignedVis = circshift(responseVis,targetIndex - ind);
+%         realignedVis = [realignedVis; realignedVis(1)];
+%         realignedVisAud = circshift(responseVisAud,targetIndex - ind);
+%         realignedVisAud = [realignedVisAud; realignedVisAud(1)];
+%         
+%         unNormalizedVis = [unNormalizedVis; realignedVis'];
+%         unNormalizedVisAud = [unNormalizedVisAud; realignedVisAud'];
+%         
+%         respMin = min(realignedVis); respMax = max(realignedVis);
+%         normVis = (realignedVis - respMin) / (respMax - respMin);
+%         normVisAud = (realignedVisAud - respMin) / (respMax - respMin);
+%         
+%         normalizedVis = [normalizedVis; normVis'];
+%         normalizedVisAud = [normalizedVisAud; normVisAud'];
+%         
+%         if ismember(unitData(n).neuronNumber,responsiveUnits.orientationSelectiveUnits)
+%             unNormalizedVis_Orientation = [unNormalizedVis_Orientation; realignedVis'];
+%             unNormalizedVisAud_Orientation = [unNormalizedVisAud_Orientation; realignedVisAud'];
+%             normalizedVis_Orientation = [normalizedVis_Orientation; normVis'];
+%             normalizedVisAud_Orientation = [normalizedVisAud_Orientation; normVisAud'];
+%         else
+%             unNormalizedVis_NoOrientation = [unNormalizedVis_NoOrientation; realignedVis'];
+%             unNormalizedVisAud_NoOrientation = [unNormalizedVisAud_NoOrientation; realignedVisAud'];
+%             normalizedVis_NoOrientation = [normalizedVis_NoOrientation; normVis'];
+%             normalizedVisAud_NoOrientation = [normalizedVisAud_NoOrientation; normVisAud'];
+%         end
+%     end
+% end
 
 f2 = figure;
 set(f2,'Position',[150 80 1250 700]);
@@ -372,7 +373,8 @@ title('Orientation UNselective (normalized)');
 legend({'Vis','Vis/Aud'});
 
 suptitle({'Population orientation preference, +/- white noise'});
-% saveas(f2,fullfile(newDir,'Population orientation preference'));
+saveas(f2,fullfile(newDir,'Population orientation preference'));
+
 
 
 analysisParams.mouseID = mouseID;
@@ -389,9 +391,11 @@ responsiveUnits.lightResponsiveUnits = lightResponsiveUnits;
 responsiveUnits.interactUnits = interactUnits;
 responsiveUnits.orientationSelectiveUnits = orientationSelectiveUnits;
 responsiveUnits.soundResponsiveFromANOVA = soundResponsiveFromANOVA;
+responsiveUnits.multiUnits = multiUnits;
+responsiveUnits.singleUnits = singleUnits;
 
 
-% save(fullfile(newDir,'AVDriftingGratingsWhiteNoiseData.mat'),'unitData','analysisParams','responsiveUnits');
+save(fullfile(newDir,'AVDriftingGratingsWhiteNoiseData.mat'),'unitData','analysisParams','responsiveUnits');
 responsiveUnits
 
 
