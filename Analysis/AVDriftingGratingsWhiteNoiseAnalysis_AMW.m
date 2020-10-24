@@ -2,10 +2,10 @@
 clear;
 
 experiment = 'EP004';
-mouseID = 'AW124';
+mouseID = 'AW117';
 session = 'Session2';
-date = '20200303-2';
-stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVdriftingGratingsWhiteNoise50Contrast_stimInfo']);
+date = '20200201';
+stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVdriftingGratingsWhiteNoise_stimInfo']);
 
 analysisWindow = [-100 1500]; %ms relative to stimulus onset
 quantWindow = [0 1000]; %ms relative to stimulus onset
@@ -15,10 +15,10 @@ soundWindow = [0 200];
 frBinWidth = 10; %ms
 
 dataFolder = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
-dataFiles = dir(fullfile(dataFolder,'*AV_driftingGratings50Contrast_whiteNoise*'));
+dataFiles = dir(fullfile(dataFolder,'*AV_driftingGratings_whiteNoise*'));
 
 % newDir = fullfile('D:\KiloSort\',mouseID,session,folder,'OptoNoiseResponses');
-newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'AVDriftingGratings50ContrastWhiteNoise');
+newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'AVDriftingGratingsWhiteNoise');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);

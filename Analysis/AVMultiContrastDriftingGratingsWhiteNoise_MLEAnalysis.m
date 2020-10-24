@@ -2,7 +2,7 @@
 clear all;
 % close all;
 
-saveDir = fullfile('E:\Electrophysiology','EP004','MetaData - AVMultiContrastDriftingGratingsWhiteNoise');
+saveDir = fullfile('D:\Electrophysiology','EP004','MetaData - AVMultiContrastDriftingGratingsWhiteNoise');
 if ~exist(saveDir)
     mkdir(saveDir);
 end
@@ -19,228 +19,158 @@ dataPaths{8} = fullfile('EP004','AW124','20200303-2');
 %which neurons to include
 onlySingleUnits = 0;
 allNeurons = 0;
-lightResponsive = 0;
-orientationSelective = 0;
+lightResponsive = 1;
+orientationSelective = 1;
 soundResponsive = 1;
 
-trainingTrialsPercent = 0.8;
-randomizations = 5;
 
 for dp = 1:length(dataPaths)
     %     [randomize dp]
     %Load data
-    dataFile = fullfile('E:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
+    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Recat','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
     load(dataFile);
-    stimPath = dir(fullfile('E:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
+    stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
     load(fullfile(stimPath.folder,stimPath.name));
     
     orientations = stimInfo.orientations;
     contrasts = stimInfo.contrasts;
     repeats = stimInfo.repeats;
     
-    if ~exist('bayesianDecoding','var')
-        bayesianDecoding = zeros(0,randomizations,length(contrasts),2);
-        randomDecoding = zeros(0,randomizations,length(contrasts),2);
-%         dpCount = 0;
+    if ~exist('choiceMap','var')
+        choiceMap = cell(2,length(contrasts)); %v and av, by contrasts
+        randomMap = cell(2,length(contrasts)); %v and av, by contrasts, trials shuffled
     end
     
-    analysisWindow = analysisParams.analysisWindow;
-    quantWindow = analysisParams.quantWindow;
-    frBinWidth = analysisParams.frBinWidth;
-    quantFirstBin = quantWindow(1)-analysisWindow(1)-frBinWidth+1;
-    quantLastBin = quantWindow(2)-analysisWindow(1)-frBinWidth+1;
+    %     analysisWindow = analysisParams.analysisWindow;
+    %     quantWindow = analysisParams.quantWindow;
+    %     quantWindow = [0 250];
+    %     frBinWidth = analysisParams.frBinWidth;
+    %     quantFirstBin = quantWindow(1)-analysisWindow(1)-frBinWidth+1;
+    %     quantLastBin = quantWindow(2)-analysisWindow(1)-frBinWidth+1;
     
-    
-    for randomize = 1:randomizations
-        
-        if exist('neuronStats','var')
-           clear neuronStats randStats
-        end
-        
-        neuronCount = 0;
-        neuronNumberLog = [];
-        
-        [dp randomize]
-        
-        trainingTrials = randperm(repeats,repeats*trainingTrialsPercent);
-%                 trainingTrials = 1:10;
-        allTrials = 1:repeats;
-        testTrials = allTrials(~ismember(allTrials,trainingTrials));
-%                 testTrials = 1:10;
-%                 testTrials = randperm(10,2);
-%                 trainingTrials = randperm(10,8);
-                allTrials = 1:repeats;
-%                 testTrials = allTrials(~ismember(allTrials,trainingTrials));
-%                 testTrials = randperm(10,9);
-        for u  = 1:size(unitData,2)
-            neuronNumber = unitData(u).neuronNumber;
-            if (allNeurons || (lightResponsive && ismember(neuronNumber,responsiveUnits.lightResponsiveUnits))...
-                    || (orientationSelective && ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits))...
-                    || (soundResponsive && ismember(neuronNumber,responsiveUnits.soundResponsiveUnits)))...
-                    && (~onlySingleUnits || unitData(u).type==1) && unitData(u).type~=0
-                
-                neuronCount = neuronCount+1;
-                neuronNumberLog = [neuronNumberLog; neuronCount u];
-                %             neuronNumber
-                
-                trialResponses = mean(unitData(u).frTrainTrials(:,:,quantFirstBin:quantLastBin),3);
-                
-                for c = 1:length(contrasts)
-                    
-                    randOrientTrials = zeros(length(orientations),length(trainingTrials));
-                    potentialTrials = 1:length(orientations)*length(trainingTrials);
-                    for oh = 1:length(orientations)
-                        randOrientTrials(oh,:) = potentialTrials(randperm(length(potentialTrials),length(trainingTrials)));
-                        potentialTrials = potentialTrials(~ismember(potentialTrials,randOrientTrials(oh,:)));
-                    end
-                    
-                    vTrialResponses = trialResponses((c-1)*length(orientations)+1:(c-1)*length(orientations)+length(orientations),trainingTrials);
-                    vTrialResponses = vTrialResponses(:);
-                    avTrialResponses = trialResponses((c-1)*length(orientations)+1+length(contrasts)*length(orientations):(c-1)*length(orientations)+length(orientations)+length(contrasts)*length(orientations),trainingTrials);
-                    avTrialResponses = avTrialResponses(:);
-                    for ori = 1:length(orientations)
-                        ind = (c-1)*length(orientations)+ori;
-                        
-                        vTrials = trialResponses(ind,trainingTrials);
-                        pdV = fitdist(vTrials','Normal');
-                        neuronStats(neuronCount,c,ori,1) = pdV;
-                        
-                        avTrials = trialResponses(ind+length(orientations)*length(contrasts),trainingTrials);
-                        pdAV = fitdist(avTrials','Normal');
-                        neuronStats(neuronCount,c,ori,2) = pdAV;
-                        
-                        randVTrials = vTrialResponses(randOrientTrials(ori,:));
-                        randAVTrials = avTrialResponses(randOrientTrials(ori,:));
-                        
-                        pdRandV = fitdist(randVTrials,'Normal');
-                        randStats(neuronCount,c,ori,1) = pdRandV;
-                        pdRandAV = fitdist(randAVTrials,'Normal');
-                        randStats(neuronCount,c,ori,2) = pdRandAV;
-                    end
-                end
-            end
-        end
-        
-%         if neuronCount~=0
-%             dpCount = dpCount+1;
+    neuronCount = 0;
+    neuronNumberLog = [];
+    for u  = 1:size(unitData,2)
+        neuronNumber = unitData(u).neuronNumber;
+        if (allNeurons || (lightResponsive && ismember(neuronNumber,responsiveUnits.lightResponsiveUnits))...
+                || (orientationSelective && ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits))...
+                || (soundResponsive && ismember(neuronNumber,responsiveUnits.soundResponsiveUnits)))...
+                && (~onlySingleUnits || unitData(u).type==1) && unitData(u).type~=0
             
-            for c = 1:length(contrasts)
-                [dp randomize c]
-                actual = zeros(1,length(orientations)*length(testTrials));
-                realPredict = zeros(2,size(actual,2));
-                randPredict = zeros(2,size(actual,2));
+            neuronCount = neuronCount+1;
+            neuronNumberLog = [neuronNumberLog; neuronCount neuronNumber u];
+        end
+    end
+    
+    if neuronCount>0
+        
+        for c = 1:length(contrasts)
+            tempChoiceMap = zeros(2,length(orientations),length(orientations));
+            
+            for o = 1:length(orientations)
+                [dp c o]
+                mleClassification = zeros(2,length(orientations));
+                randomClassification = zeros(2,length(orientations));
                 
-                trialCount = 0;
-                for ori = 1:length(orientations)
-                    for t = 1:length(testTrials)
-                        probeTrial = testTrials(t);
-                        trialCount = trialCount+1;
-                        
-                        realProbs = ones(length(orientations),2);
-                        randProbs = ones(length(orientations),2);
-                        
-                        for n = 1:size(neuronStats,1)
-                            u = neuronNumberLog(n,2);
-                            
-                            respV = mean(unitData(u).frTrainTrials((c-1)*length(orientations)+ori,probeTrial,quantFirstBin:quantLastBin));
-                            respAV = mean(unitData(u).frTrainTrials((c-1)*length(orientations)+ori+length(orientations)*length(contrasts),probeTrial,quantFirstBin:quantLastBin));
-                            for o = 1:length(orientations)
-                                if neuronStats(n,c,o,1).sigma~=0
-                                    prob = pdf(neuronStats(n,c,o,1),respV);
-                                    realProbs(o,1) = realProbs(o,1)*prob;
-                                end
-                                
-                                if neuronStats(n,c,o,2).sigma~=0
-                                    prob = pdf(neuronStats(n,c,o,2),respAV);
-                                    realProbs(o,2) = realProbs(o,2)*prob;
-                                end
-                                
-                                if randStats(n,c,o,1).sigma~=0
-                                    prob = pdf(randStats(n,c,o,1),respV);
-                                    randProbs(o,1) = randProbs(o,1)*prob;
-                                end
-                                
-                                if randStats(n,c,o,2).sigma~=0
-                                    prob = pdf(randStats(n,c,o,2),respAV);
-                                    randProbs(o,2) = randProbs(o,2)*prob;
-                                end
-                            end
-                        end
-                        
-                        [val ind] = max(realProbs(:,1));
-                        actual(1,trialCount) = ori;
-                        realPredict(1,trialCount) = ind;
-                        
-                        [val ind] = max(realProbs(:,2));
-                        realPredict(2,trialCount) = ind;
-                        
-                        [val ind] = max(randProbs(:,1));
-                        randPredict(1,trialCount) = ind;
-                        
-                        [val ind] = max(randProbs(:,2));
-                        randPredict(2,trialCount) = ind;
+                
+                
+                for trial = 1:repeats
+                
+                    if exist('neuronStats','var')
+                        clear neuronStats randStats
                     end
+                    probeData = [];
+                    
+                    for neuron = 1:neuronCount
+                        neuronU = neuronNumberLog(neuron,3);
+                        
+                        for orient = 1:length(orientations)
+                            vInd = (c-1)*length(orientations) + orient;
+                            avInd = (c-1)*length(orientations) + orient +length(orientations)*length(contrasts);
+                            
+                            trialsIncluded = 1:repeats;
+                            if orient==o
+                                trialsIncluded  = setdiff(trialsIncluded,trial);
+                                
+                                probeTrialV = unitData(neuronU).trialResponse(vInd,trial);
+                                probeTrialAV = unitData(neuronU).trialResponse(avInd,trial);
+                                probeData = [probeData [probeTrialV; probeTrialAV]];
+                            end
+                            
+                            vData = unitData(neuronU).trialResponse(vInd,trialsIncluded);
+                            avData = unitData(neuronU).trialResponse(avInd,trialsIncluded);
+                            
+                            neuronStats(neuron,orient,1) = fitdist(vData','Normal');
+                            neuronStats(neuron,orient,2) = fitdist(avData','Normal');
+                        end
+                    end
+                    
+                    vEstimate = maximumLikelihoodFunction(neuronStats(:,:,1),probeData(1,:));
+                    mleClassification(1,vEstimate) = mleClassification(1,vEstimate) +1;
+                    
+                    avEstimate = maximumLikelihoodFunction(neuronStats(:,:,2),probeData(2,:));
+                    mleClassification(2,avEstimate) = mleClassification(2,avEstimate) +1;
+                    
                 end
                 
-                bayesianDecoding(dp,randomize,c,1) = sum(actual==realPredict(1,:))/length(actual);
-                bayesianDecoding(dp,randomize,c,2) = sum(actual==realPredict(2,:))/length(actual);
-                randomDecoding(dp,randomize,c,1) = sum(actual==randPredict(1,:))/length(actual);
-                randomDecoding(dp,randomize,c,2) = sum(actual==randPredict(2,:))/length(actual);
+                tempChoiceMap(1,o,:) = mleClassification(1,:) / sum(mleClassification(1,:));
+                tempChoiceMap(2,o,:) = mleClassification(2,:) / sum(mleClassification(2,:));
             end
-%         end
-        
-%         clear neuronStats randStats;
-        
+            choiceMap{1,c} = cat(3,choiceMap{1,c},squeeze(tempChoiceMap(1,:,:)));
+            size(choiceMap{1,c})
+            choiceMap{2,c} = cat(3,choiceMap{2,c},squeeze(tempChoiceMap(2,:,:)));
+        end
     end
 end
 
-meanBayes = squeeze(mean(bayesianDecoding,2));
-meanRand = squeeze(mean(randomDecoding,2));
-% meanBayes = bayesianDecoding;
-% meanRand = randomDecoding;
-
-anova2([squeeze(meanBayes(:,:,1)); squeeze(meanBayes(:,:,2))],8)
-
-
-f1 = figure;hold on;
-
-semV = std(meanBayes(:,:,1))/sqrt(size(meanBayes,1));
-semVA = std(meanBayes(:,:,2))/sqrt(size(meanBayes,1));
-hA = area(contrasts,[mean(meanBayes(:,:,1))-semV;2*semV]');
+meanMap = squeeze(mean(choiceMap{1,5},3));
+figure;imagesc(meanMap); 
+statsMat = [];
+for c = 1:5
+    clear tempV tempAV tempDiff
+    for s=1:size(choiceMap{1,c},3)
+        tempV(s) = mean(diag(choiceMap{1,c}(:,:,s)));
+        tempAV(s) = mean(diag(choiceMap{2,c}(:,:,s)));
+        tempDiff(s) = tempAV(s) - tempV(s);
+    end
+    vAcc(c) = mean(tempV);
+    vAccStd(c) = std(tempV)/sqrt(length(tempV));
+    avAcc(c) = mean(tempAV);
+    avAccStd(c) = std(tempAV)/sqrt(length(tempAV));
+    diffAcc(c) = mean(tempDiff);
+    diffAccStd(c) = std(diffAcc)/sqrt(length(diffAcc));
+    diffAccStd(c) = std(tempDiff)/sqrt(length(tempDiff));
+    
+    statsMat = [statsMat; [tempV' tempAV']];
+    
+%     [c vAcc avAcc]
+end
+figure;hold on;
+hA = area(contrasts,[vAcc-vAccStd; 2*vAccStd]')
 hA(1).FaceAlpha = 0;
 hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [0 0 0];
-hA(2).FaceAlpha = 0.4;
+hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
-hAV = area(contrasts,[mean(meanBayes(:,:,2))-semVA;2*semVA]');
-hAV(1).FaceAlpha = 0;
-hAV(1).EdgeColor = [1 1 1];
-hAV(2).FaceColor = [0 0 1];
-hAV(2).FaceAlpha = 0.4;
-hAV(2).EdgeColor = [1 1 1];
-semVRand = std(meanRand(:,:,1))/sqrt(size(meanRand,1));
-semVARand = std(meanRand(:,:,2))/sqrt(size(meanRand,1));
-hA = area(contrasts,[mean(meanRand(:,:,1))-semVRand;2*semVRand]');
+hA = area(contrasts,[avAcc-avAccStd; 2*avAccStd]')
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 1];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+
+plot(contrasts,vAcc,'Color',[0 0 0]);
+plot(contrasts,avAcc,'Color',[0 0 1]);
+
+figure;hold on;
+hA = area(contrasts,[diffAcc-diffAccStd; 2*diffAccStd]')
 hA(1).FaceAlpha = 0;
 hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [0 0 0];
-hA(2).FaceAlpha = 0.4;
+hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
-hAV = area(contrasts,[mean(meanRand(:,:,2))-semVARand;2*semVARand]');
-hAV(1).FaceAlpha = 0;
-hAV(1).EdgeColor = [1 1 1];
-hAV(2).FaceColor = [0 0 1];
-hAV(2).FaceAlpha = 0.4;
-hAV(2).EdgeColor = [1 1 1];
+plot(contrasts,diffAcc,'Color',[0 0 0]);
 
+[p,~,~] = anova2(statsMat,8,'off')
 
-plot(contrasts,mean(meanBayes(:,:,1)),'Color',[0 0 0],'LineWidth',2);
-plot(contrasts,mean(meanBayes(:,:,2)),'Color',[0 0 1],'LineWidth',2);
-plot(contrasts,mean(meanRand(:,:,1)),'Color',[0 0 0],'LineWidth',2,'LineStyle',':');
-plot(contrasts,mean(meanRand(:,:,2)),'Color',[0 0 1],'LineWidth',2,'LineStyle',':');
-
-ylabel('Accuracy');
-xlabel('Contrast');
-xticks(contrasts);
-suptitle({'Bayesian maximum likelihood decoding accuracy'});
-% saveas(f1,fullfile(saveDir,'Maximum likelihood decoding accuracy - sound responsive'));
+     
