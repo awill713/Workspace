@@ -1,10 +1,10 @@
 
 clear;
 
-experiment = 'EP004';
-mouseID = 'AW115';
-session = 'Session2';
-date = '20200222';
+experiment = 'EP002';
+mouseID = 'AW103';
+session = 'Session1';
+date = '20191120';
 stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVstaticMultiAmpNoise_stimInfo']);
 
 analysisWindow = [-50 200]; %ms relative to stimulus onset
@@ -193,14 +193,15 @@ for n = 1:totalUnits
     xlabel('Time (ms)');
     
     subplot(1,4,4);hold on;
-    %         plot(meanResponse(1:length(intensities),4),'Color',[0 0 0],'LineWidth',2);
-    %         plot(meanResponse(length(intensities)+1:2*(length(intensities)),4),'Color',[0 0 1],'LineWidth',2);
+%             plot(meanResponse(1:length(intensities),4),'Color',[0 0 0],'LineWidth',2);
+%             plot(meanResponse(length(intensities)+1:2*(length(intensities)),4),'Color',[0 0 1],'LineWidth',2);
     errorbar(meanResponse(1:length(intensities),4),meanResponse(1:length(intensities),5),'Color',[0 0 0],'LineWidth',2);
     errorbar(meanResponse(length(intensities)+1:2*(length(intensities)),4),mean(length(intensities)+1:2*length(intensities),5),'Color',[0 0 1],'LineWidth',2);
     xticks(1:length(intensities));
     xticklabels(intensities)
     xlabel('Sound intensity (dB)');
-    legend({'Sound','Sound/Light'})
+    ylabel('Firing rate (Hz)');
+    legend({'Aud','Aud/Vis'})
     
     suptitle(['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n) '), unitType = ' num2str(nData.CellInfo(6)) ', p = ' num2str(p) ]);
     
@@ -256,10 +257,10 @@ xlabel('Sound intensity (dB)');
 ylabel('Normalized firing rate');
 legend({'Sound','Sound/Light'})
 title(['Sound = ' num2str(pp(1)) ', light = ' num2str(pp(2)) ', interact = ' num2str(pp(3))]);
-saveas(f2,fullfile(newDir,'Population audiovisual response.fig'));
+% saveas(f2,fullfile(newDir,'Population audiovisual response.fig'));
 
 
-save(fullfile(newDir,'AVStaticMultiAmpNoiseData.mat'),'unitData','analysisParams','responsiveUnits');
+% save(fullfile(newDir,'AVStaticMultiAmpNoiseData.mat'),'unitData','analysisParams','responsiveUnits');
 responsiveUnits
 
 

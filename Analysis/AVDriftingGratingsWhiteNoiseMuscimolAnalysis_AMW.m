@@ -1,11 +1,12 @@
 
 clear;
 
-experiment = 'EP004';
-mouseID = 'AW118';
-session = 'Session2';
-date = '20200221-2';
-stimPath = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVmultiContrastDriftingGratingsWhiteNoise_stimInfo']);
+experiment = 'EP009';
+mouseID = 'AW149';
+session = 'Session1';
+date = '20200923';
+preStimPath = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVsingleContrastDriftingGratingsWhiteNoise_stimInfo_pre']);
+postStimPath = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVsingleContrastDriftingGratingsWhiteNoise_stimInfo_post']);
 
 analysisWindow = [-100 1200]; %ms relative to stimulus onset
 quantWindow = [0 300]; %ms relative to stimulus onset
@@ -14,10 +15,11 @@ baselineWindow = [-90 0]; %ms relative to stimulus onset
 frBinWidth = 10; %ms
 
 dataFolder = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
-dataFiles = dir(fullfile(dataFolder,'*AV_driftingGratingsMultiContrast_whiteNoise*'));
+dataFilesPre = dir(fullfile(dataFolder,'*avDriftingGratingsSingleContrast_whiteNoise_pre*'));
+dataFilesPost = dir(fullfile(dataFolder,'*avDriftingGratingsSingleContrast_whiteNoise_post*'));
 
 % newDir = fullfile('D:\KiloSort\',mouseID,session,folder,'OptoNoiseResponses');
-newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'AVMultiContrastDriftingGratingsWhiteNoise_Recat2');
+newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'AVMultiContrastDriftingGratingsWhiteNoise_Recat');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);
@@ -26,14 +28,14 @@ if ~exist(figureDir)
     mkdir(figureDir);
 end
 
-load(stimPath);
+load(preStimPath);
 uniqueEvents = size(stimInfo.index,1);
 indices = stimInfo.index(:,1);
 repeats = stimInfo.repeats;
 orientations = stimInfo.orientations;
 contrasts = stimInfo.contrasts;
 
-totalUnits = length(dataFiles);
+totalUnits = length(dataFilesPre);
 
 binCount = analysisWindow(2)-analysisWindow(1)-frBinWidth+1; %sliding window
 frScalar = 1000/frBinWidth;
@@ -58,7 +60,7 @@ rasterColors = map(round(linspace(1,length(map),length(orientations))),:);
 
 for n = 1:totalUnits
     n
-    nData = load(fullfile(dataFiles(n).folder,dataFiles(n).name));
+    nData = load(fullfile(dataFilesPre(n).folder,dataFilesPre(n).name));
     
     eventTimes = nData.Events;
     spikeTimes = nData.SpikeData(1,:);
@@ -132,13 +134,13 @@ for n = 1:totalUnits
         sparsity = [sparsity [vSparse; avSparse]];
     end
     
-    unitData(n).raster = spikeRaster;
-    unitData(n).meanResponse = meanResponse;
-    unitData(n).frTrain = frTrain;
-    unitData(n).frTrainSTD = squeeze(std(frTrainTrials,[],2));
-    unitData(n).frTrainTrials = frTrainTrials; %JUST NUMBER OF SPIKES IN BIN, NOT FIRING RATE
-    unitData(n).trialResponse = trialResponse;
-    unitData(n).sparsity = sparsity;
+    unitData(n).PREraster = spikeRaster;
+    unitData(n).PREmeanResponse = meanResponse;
+    unitData(n).PREfrTrain = frTrain;
+    unitData(n).PREfrTrainSTD = squeeze(std(frTrainTrials,[],2));
+    unitData(n).PREfrTrainTrials = frTrainTrials; %JUST NUMBER OF SPIKES IN BIN, NOT FIRING RATE
+    unitData(n).PREtrialResponse = trialResponse;
+    unitData(n).PREsparsity = sparsity;
     unitData(n).type = nData.CellInfo(6);
     unitData(n).neuronNumber = nData.CellInfo(4);
     neuronNumber = nData.CellInfo(4);
@@ -167,12 +169,12 @@ for n = 1:totalUnits
     end
     
     if pAV(1)<0.05
-        c=5;
+        c=2;
         baseInd = (c-1)*length(orientations);
         visMeanResp = meanResponse(baseInd+1:baseInd+length(orientations),4);
         [~, maxInd] = max(visMeanResp);
-        oppInd = mod(maxInd+6-1,length(orientations))+1;
-        orthInd = [mod(maxInd+3-1,length(orientations)) mod(maxInd-3-1,length(orientations))]+1;
+        oppInd = mod(maxInd+6,length(orientations));
+        orthInd = [mod(maxInd+3,length(orientations)) mod(maxInd-3,length(orientations))];
         
         
         [~, pDir] = ttest2(trialResponse(baseInd+maxInd,:),trialResponse(baseInd+oppInd,:));
@@ -188,55 +190,136 @@ for n = 1:totalUnits
         pDir = 1;
         pOrient=1;
     end
+    
+    %% post inj analysis
+    postStim = load(postStimPath);
+    nDataPost = load(fullfile(dataFilesPre(n).folder,dataFilesPost(n).name));
+    
+    eventTimes = nDataPost.Events;
+    spikeTimes = nDataPost.SpikeData(1,:);
+    
+    spikeRasterPost = cell(uniqueEvents,3); %spike times (1), trial number (y-axis) (2), color (3)
+    meanResponsePost = zeros(uniqueEvents,5); %index (1),  mean baseline (2), baseline std (3), mean response (4), response std (5)
+    trialResponsePost = zeros(uniqueEvents,repeats);
+    frTrainPost = zeros(uniqueEvents,binCount);
+    frTrainTrialsPost = zeros(uniqueEvents,repeats,binCount);
+    quantTrialsPost = zeros(uniqueEvents,repeats);
+    
+    for u = 1:uniqueEvents
+        eventID = indices(u);
+        eventsOfInterest = find(postStim.stimInfo.order==eventID);
+        
+        
+        color = rasterColors(mod(u-1,size(rasterColors,1))+1,:);
+        
+        
+        spikeFR = zeros(length(eventsOfInterest),binCount);
+        rasterX = [];
+        rasterY = [];
+        
+        prePost = zeros(length(eventsOfInterest),2);
+        tempY = mod(u-1,length(orientations))*repeats;
+        for e = 1:length(eventsOfInterest)
+            tempY = tempY+1;
+            
+            time = eventTimes(eventsOfInterest(e));
+            alignedSpikes = (spikeTimes-time)/1000; %temporal resolution of cheetah is in microseconds, converting to milliseconds
+            trialSpikes = alignedSpikes(find(alignedSpikes>analysisWindow(1) & alignedSpikes<analysisWindow(end)));
+            rasterX = [rasterX trialSpikes];
+            rasterY = [rasterY repmat(tempY,[1 length(trialSpikes)])];
+            
+            for b = 1:binCount %sliding window
+                timeMin = analysisWindow(1)+b-1;
+                timeMax = timeMin+frBinWidth;
+                spikeFR(e,b) = length(find(alignedSpikes>timeMin & alignedSpikes<timeMax));
+            end
+            prePost(e,1) = histcounts(trialSpikes,[baselineWindow(1) baselineWindow(2)]);
+            prePost(e,2) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)]);
+            quantTrials(u,e) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)])*quantScalar;
+        end
+        
+        spikeRasterPost{u,1} = rasterX;
+        spikeRasterPost{u,2} = rasterY;
+        spikeRasterPost{u,3} = color;
+        meanResponsePost(u,1) = eventID;
+        meanResponsePost(u,2) = mean(prePost(:,1))*baselineScalar;
+        meanResponsePost(u,3) = std(prePost(:,1))*baselineScalar/sqrt(repeats);
+        meanResponsePost(u,4) = mean(prePost(:,2))*quantScalar;
+        meanResponsePost(u,5) = std(prePost(:,2))*quantScalar/sqrt(repeats);
+        trialResponsePost(u,:) = prePost(:,2)*quantScalar;
+        
+        frTrainTrialsPost(u,:,:) = spikeFR; %JUST NUMBER OF SPIKES IN BIN, NOT FIRING RATE
+        frTrainPost(u,:) = mean(spikeFR,1)*frScalar;
+        
+    end
+    
+    sparsityPost = [];
+    for c = 1:length(contrasts)
+        evIdx = 1 + (c-1)*length(orientations);
+        idxOffset = length(orientations)*length(contrasts);
+        
+        v = meanResponse(evIdx:(evIdx+length(orientations)-1),4);
+        av = meanResponse(evIdx+idxOffset:(evIdx+length(orientations)-1+idxOffset),4);
+        
+        vSparse = 1 - (sum(v./length(orientations))^2 / sum(v.^2 / length(orientations)));
+        avSparse = 1 - (sum(av./length(orientations))^2 / sum(av.^2 / length(orientations)));
+        
+        sparsityPost = [sparsityPost [vSparse; avSparse]];
+    end
+    
+    unitData(n).POSTraster = spikeRasterPost;
+    unitData(n).POSTmeanResponse = meanResponsePost;
+    unitData(n).POSTfrTrain = frTrainPost;
+    unitData(n).POSTfrTrainSTD = squeeze(std(frTrainTrialsPost,[],2));
+    unitData(n).POSTfrTrainTrials = frTrainTrialsPost; %JUST NUMBER OF SPIKES IN BIN, NOT FIRING RATE
+    unitData(n).POSTtrialResponse = trialResponsePost;
+    unitData(n).POSTsparsity = sparsityPost;
+    
+    %% plot
         
     
     f1 = figure;
     set(f1,'Position',[150 80 1250 700]);
     for c = 1:length(contrasts)
-        subplot(3,length(contrasts),c);
+        subplot(4,length(contrasts),c);
         for r = 1:length(orientations)
             evIdx = r + (c-1)*length(orientations);
             scatter(spikeRaster{evIdx,1}/1000,spikeRaster{evIdx,2},[],spikeRaster{evIdx,3},'.');
             hold on;
         end
-        title(['Cont = ' num2str(contrasts(c))]);
+        title(['Cont = ' num2str(contrasts(c)) ', light']);
         
-        subplot(3,length(contrasts),c+length(contrasts));
+        subplot(4,length(contrasts),c+length(contrasts));
         for r = 1:length(orientations)
             evIdx = r + (c-1)*length(orientations) + length(orientations)*length(contrasts);
             scatter(spikeRaster{evIdx,1},spikeRaster{evIdx,2},[],spikeRaster{evIdx,3},'.');
             hold on;
         end
+        title(['Cont = ' num2str(contrasts(c)) ', light+sound']);
         
-        subplot(3,length(contrasts),c+2*length(contrasts));hold on;
-        psthScalar = 20/max(max(frTrain));
-        yMin = 0;
+        subplot(4,length(contrasts),c+2*length(contrasts));
         for r = 1:length(orientations)
             evIdx = r + (c-1)*length(orientations);
-            idxOffset = length(orientations)*length(contrasts);
-            
-            trace = (frTrain(evIdx,:)-mean(frTrain(evIdx,baselineFirstBin:baselineLastBin)))*psthScalar + 20*(r-1);
-            plot(binEdges,trace,'Color',spikeRaster{evIdx,3});
-            yMin = min([yMin min(trace)]);
-            
-            trace = (frTrain(evIdx+idxOffset,:)-mean(frTrain(evIdx+idxOffset,baselineFirstBin:baselineLastBin)))*psthScalar + 20*(r-1);
-            plot(binEdges,trace,'Color',spikeRaster{evIdx+idxOffset,3},'LineStyle','--');
-            yMin = min([yMin min(trace)]);
+            scatter(spikeRasterPost{evIdx,1}/1000,spikeRasterPost{evIdx,2},[],spikeRasterPost{evIdx,3},'.');
+            hold on;
         end
+        title(['Cont = ' num2str(contrasts(c)) ', light+musc']);
         
-        %         yLimits = ylim();
-        %         ylim([yMin-5  yLimits(2)]);
-        yticks([]);
-        xlim([analysisWindow]);
-        xlabel('Time (ms)');
+        subplot(4,length(contrasts),c+3*length(contrasts));
+        for r = 1:length(orientations)
+            evIdx = r + (c-1)*length(orientations) + length(orientations)*length(contrasts);
+            scatter(spikeRasterPost{evIdx,1},spikeRasterPost{evIdx,2},[],spikeRasterPost{evIdx,3},'.');
+            hold on;
+        end
+        title(['Cont = ' num2str(contrasts(c)) ', light+sound+musc']);
     end
     suptitle({['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n)...
         '), unitType = ' num2str(nData.CellInfo(6))] ['Light responsive = ' num2str(pAV(1))...
         ', Sound responsive = ' num2str(pAV(2)) ', Orientation selective = ' num2str(pOrient)...
         ', Direction selective = ' num2str(pDir)]});
     
-    saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.fig']));
-    saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.jpg']));
+    saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters.fig']));
+    saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters.jpg']));
     close(f1);
     
     
@@ -252,6 +335,7 @@ for n = 1:totalUnits
         polarplot(2*pi*orientations./360,meanResponse(evIdx:(evIdx+length(orientations)-1),4),'Color',[0 0 0],'LineWidth',2);
         hold on;
         polarplot(2*pi*orientations./360,meanResponse((evIdx+idxOffset):(evIdx+idxOffset+length(orientations)-1),4),'Color',[0 0 1],'LineWidth',2);
+        polarplot(2*pi*orientations./360,meanResponsePost((evIdx+idxOffset):(evIdx+idxOffset+length(orientations)-1),4),'Color',[0 0 1],'LineWidth',2,'LineStyle',':');
         title(['Cont = ' num2str(contrasts(c))]);
         tempLim = rlim;
         if max(tempLim)>limMax
@@ -270,63 +354,15 @@ for n = 1:totalUnits
     saveas(f2,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response polar plots.jpg']));
     close(f2);
     
-    
-    f5 = figure; hold on;
-    set(f5,'Position',[400 150 800 600]);
-    fanoFactor = [];
-    for c = 1:length(contrasts)
-        %         subplot(1,length(contrasts),c); hold on;
-        
-        evIdx = 1 + (c-1)*length(orientations);
-        idxOffset = length(orientations)*length(contrasts);
-        
-        vis = meanResponse(evIdx:evIdx+length(orientations)-1,4)';
-        visAud = meanResponse(evIdx+idxOffset:evIdx+idxOffset+length(orientations)-1,4)';
-        stdVis = ((meanResponse(evIdx:evIdx+length(orientations)-1,5)*sqrt(repeats))');
-        stdAudVis = ((meanResponse(evIdx+idxOffset:evIdx+idxOffset+length(orientations)-1,5)*sqrt(repeats))');
-        
-        sAlpha = scatter(vis,stdVis,[],[0 0 0],'filled');
-        sAlpha.MarkerFaceAlpha = c/length(contrasts);
-        sAlpha = scatter(visAud,stdAudVis,[],[0 0 1],'filled');
-        sAlpha.MarkerFaceAlpha = c/length(contrasts);
-        xlabel('Firing rate (Hz)');
-        ylabel('Standard deviation');
-        
-        fanoVis = mean(stdVis)/mean(vis);
-        fanoAudVis = mean(stdAudVis)/mean(visAud);
-        fanoFactor = [fanoFactor [fanoVis; fanoAudVis]];
-        
-    end
-    vis = meanResponse(1:length(orientations)*length(contrasts),4)';
-    visAud = meanResponse(length(orientations)*length(contrasts)+1:length(orientations)*length(contrasts)*2,4)';
-    stdVis = (meanResponse(1:length(orientations)*length(contrasts),5)'*sqrt(repeats));
-    stdAudVis = (meanResponse(length(orientations)*length(contrasts)+1:length(orientations)*length(contrasts)*2,5)'*sqrt(repeats));
-    pVis = polyfit(vis,stdVis,1);
-    pVisAud = polyfit(visAud,stdAudVis,1);
-    lineMeanV = [mean(vis) mean(stdVis)];
-    lineMeanAV = [mean(visAud) mean(stdAudVis)];
-    line([0 110],[0 110*lineMeanV(2)/lineMeanV(1)],'Color',[0 0 0]);
-    line([0 110],[0 110*lineMeanAV(2)/lineMeanAV(1)],'Color',[0 0 1]);
-    
-    plot([min(vis) max(vis)],polyval(pVis,[min(vis) max(vis)]),'Color',[0 0 0]);
-    plot([min(visAud) max(visAud)],polyval(pVisAud,[min(visAud) max(visAud)]),'Color',[0 0 1]);
-    unitData(n).fanoFactor = fanoFactor;
-    title(['m_V, b_V = ' num2str(pVis) ',    m_A_V, b_A_V = ' num2str(pVisAud)]);
-    suptitle({['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n)...
-        '), unitType = ' num2str(nData.CellInfo(6))] ['Light responsive = ' num2str(pAV(1))...
-        ', Sound responsive = ' num2str(pAV(2)) ', Orientation selective = ' num2str(pOrient)...
-        ', Direction selective = ' num2str(pDir)]});
-    saveas(f5,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response variance.fig']));
-    saveas(f5,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response variance.jpg']));
-    close(f5);
-    
+   
 end
 
 
 analysisParams.mouseID = mouseID;
 analysisParams.session = session;
 analysisParams.date = date;
-analysisParams.stimPath = stimPath;
+analysisParams.preStimPath = preStimPath;
+analysisParams.postStimPath = postStimPath;
 analysisParams.analysisWindow = analysisWindow;
 analysisParams.frBinWidth = frBinWidth;
 analysisParams.quantWindow = quantWindow;
@@ -345,110 +381,52 @@ responsiveUnits.lightAndOrientation = intersect(responsiveUnits.lightResponsiveU
 
 
 
-normalizedResponseCurves = cell(length(contrasts),2);
-orientationCurves = cell(length(contrasts),2);
+preL = [];
+preB = [];
+postB = [];
+postL = [];
+lblb = [];
 for n = 1:totalUnits
-    if unitData(n).type~=0 && ismember(unitData(n).neuronNumber,responsiveUnits.lightResponsiveUnits)
+    if unitData(n).type~=0 && ismember(unitData(n).neuronNumber,responsiveUnits.soundAndLight)
         
-        allResponses = unitData(n).meanResponse(:,4);
-        highContVis = allResponses(((length(contrasts)-1)*length(orientations))+1:((length(contrasts)-1)*length(orientations)+length(orientations)));
-        [peak ind] = max(highContVis);
-        maxVal = max(allResponses(:));
-        minVal = min(allResponses(:));
+        preLight = unitData(n).PREmeanResponse(25:36,4);
+        preBoth = unitData(n).PREmeanResponse(37:48,4);
+        postBoth = unitData(n).POSTmeanResponse(37:48,4);
+        postLight = unitData(n).POSTmeanResponse(25:36,4);
         
-        for c = 1:length(contrasts)
-            %             responseVis = unitData(n).meanResponse(((c-1)*length(orientations))+1:((c-1)*length(orientations)+length(orientations)),4);
-            %             responseVisAud = unitData(n).meanResponse(((c-1)*length(orientations)+1+length(contrasts)*length(orientations)):((c-1)*length(orientations)+length(contrasts)*length(orientations)+length(orientations)),4);
-            
-            responseVis = allResponses(((c-1)*length(orientations))+1:((c-1)*length(orientations)+length(orientations)));
-            responseVisAud = allResponses(((c-1)*length(orientations)+1+length(contrasts)*length(orientations)):((c-1)*length(orientations)+length(contrasts)*length(orientations)+length(orientations)));
-            
-            %             [peak ind] = max(responseVis);
-            targetIndex = floor(length(orientations)/2) + 1;
-            
-            realignedVis = circshift(responseVis,targetIndex - ind);
-            realignedVis = [realignedVis; realignedVis(1)];
-            realignedVisAud = circshift(responseVisAud,targetIndex - ind);
-            realignedVisAud = [realignedVisAud; realignedVisAud(1)];
-            
-            %             minVal = min(realignedVis); maxVal = max(realignedVis);
-            %             if maxVal==minVal
-            %                 maxVal = maxVal + 1;
-            %             end
-            normVis = (realignedVis - minVal) / (maxVal - minVal);
-            normVisAud = (realignedVisAud - minVal) / (maxVal - minVal);
-            
-            normalizedResponseCurves{c,1} = [normalizedResponseCurves{c,1}; normVis'];
-            normalizedResponseCurves{c,2} = [normalizedResponseCurves{c,2}; normVisAud'];
-            
-            vNorm = (responseVis - minVal) / (maxVal - minVal);
-            vaNorm = (responseVisAud - minVal) / (maxVal - minVal);
-            
-            orientationCurves{c,1} = [orientationCurves{c,1}; vNorm'];
-            orientationCurves{c,2} = [orientationCurves{c,2}; vaNorm'];
-        end
+        preL = [preL; preLight'];
+        preB = [preB; preBoth'];
+        postB = [postB; postBoth'];
+        postL = [postL; postLight'];
+        
+        lblb = [lblb; mean(preLight) mean(preBoth) mean(postLight) mean(postBoth)];
+        
     end
 end
-
-f3 = figure;
-set(f3,'Position',[25 200 1500 400]);
-for c = 1:length(contrasts)
-    subplot(1,length(contrasts),c);hold on;
-    plot(linspace(-180,180,length(orientations)+1),mean(normalizedResponseCurves{c,1}),'Color',[0 0 0],'LineWidth',2);
-    plot(linspace(-180,180,length(orientations)+1),mean(normalizedResponseCurves{c,2}),'Color',[0 0 1],'LineWidth',2);
-    ylabel('Normalized firing rate');
-    xlabel('\Delta orientation (degrees)');
-    xticks(-180:90:180);
-    ylim([0 1])
-    title(['Cont = ' num2str(contrasts(c))]);
-end
-legend({'Light','Light/Sound'});
-suptitle({'Neuron-wise orientation preference, +/- white noise'});
-saveas(f3,fullfile(newDir,'Neuron-wise orientation preference'));
-
+mLPre = mean(preL);
+mBPre = mean(preB);
+mLPost = mean(postL);
+mBPost = mean(postB);
+     
+orientationsL = [orientations orientations(1)];
 f4 = figure;
-set(f4,'Position',[25 200 1500 400]);
-for c = 1:length(contrasts)
-    subplot(1,length(contrasts),c);
-    polarplot(2*pi*orientations./360,mean(orientationCurves{c,1}),'Color',[0 0 0],'LineWidth',2);
+    polarplot(2*pi*orientationsL./360,[mLPre mLPre(1)],'Color',[0 0 0],'LineWidth',2);
     hold on;
-    polarplot(2*pi*orientations./360,mean(orientationCurves{c,2}),'Color',[0 0 1],'LineWidth',2);
-    rlim([0 1]);
+    polarplot(2*pi*orientationsL./360,[mBPre mBPre(1)],'Color',[0 0 1],'LineWidth',2);
+    polarplot(2*pi*orientationsL./360,[mLPost mLPost(1)],'Color',[0 0 0],'LineWidth',2,'LineStyle',':');
+    
+    polarplot(2*pi*orientationsL./360,[mBPost mBPost(1)],'Color',[0 0 1],'LineWidth',2,'LineStyle',':');
     title(['Cont = ' num2str(contrasts(c))]);
-end
-suptitle({'Population orientation preference, +/- white noise'});
+suptitle({'Population orientation preference, +/- white noise, muscimol'});
 saveas(f4,fullfile(newDir,'Population orientation preference'));
-%
-% f6 = figure;hold on;
-% slopes = zeros(0,2);
-% yint = zeros(0,2);
-% for n = 1:totalUnits
-%     if ismember(unitData(n).neuronNumber,soundResponsiveUnits) && unitData(n).type~=0
-% %     if unitData(n).type~=0
-%         slopes = [slopes; unitData(n).fanoFit(1) unitData(n).fanoFit(3)];
-%         yint = [yint; unitData(n).fanoFit(2) unitData(n).fanoFit(4)];
-%     end
-% end
-% scatter(slopes(:,1),yint(:,1),[],[0 0 0],'filled');
-% scatter(slopes(:,2),yint(:,2),[],[0 0 1],'filled');
-% [hslopes pslopes] = ttest(slopes(:,1),slopes(:,2));
-% [hint pint] = ttest(yint(:,1),yint(:,2));
-% xlabel('Slope');
-% ylabel('Y-intercept');
-% title(['Slopes p = ' num2str(pslopes) ', y-int p = ' num2str(pint)]);
-% suptitle({'Mean response to variance relationship'});
-% saveas(f6,fullfile(newDir,'Population variance analysis'));
-% subplot(1,2,1);hold on;
-% histogram(slopes(:,1));
-% histogram(slopes(:,2));
-% [~, pSlopes] = ttest2(slopes(:,1),slopes(:,2));
-% title(['p = ' num2str(pSlopes)]);
-%
-% subplot(1,2,2);hold on;
-% histogram(yint(:,1));
-% histogram(yint(:,2));
-% [~, pYint] = ttest2(yint(:,1),yint(:,2));
-% title(['p = ' num2str(pYint)]);
+
+f6 = figure;
+scatter(lblb(:,2)./lblb(:,1),lblb(:,4)./lblb(:,3));
+hold on;
+line([0 4],[0 4]);
+xlabel('Audiovisual response ratio, pre-muscimol');
+ylabel('Audiovisual response ratio, post-muscimol');
+saveas(f6,fullfile(newDir,'Pre and post AV response ratio'));
 
 
 
