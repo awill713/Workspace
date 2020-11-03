@@ -51,6 +51,7 @@ std(trials) / mean(trials)
 std(burst) / mean(burst)
 
 %%
+clear;
 contrasts = [0 0.25 0.5 0.75 1];
 vStim = [zeros(1,1000) ones(1,1000) zeros(1,1000)];
 aStim = [zeros(1,1000) ones(1,1000) zeros(1,1000)];
@@ -59,10 +60,13 @@ totalTime = length(vStim);
 
 meanFR = zeros(2,length(contrasts));
 stdFR = zeros(2,length(contrasts));
+frTrain = zeros(2,length(contrasts),totalTime);
+v1means = zeros(5,100);
+av1means = zeros(5,100);
 for c = 1:length(contrasts)
-    acNeurons = zeros(1000,totalTime);
-    v1Neurons = zeros(1000,totalTime);
-    av1Neurons = zeros(1000,totalTime);
+    acNeurons = zeros(100,totalTime);
+    v1Neurons = zeros(100,totalTime);
+    av1Neurons = zeros(100,totalTime);
     for t = 1:totalTime
         [c t]
         for a = 1:size(acNeurons,1)
@@ -72,15 +76,11 @@ for c = 1:length(contrasts)
         end
         
         for n = 1:size(v1Neurons,1)
-            recentBin = max([1 t-10]);
-            acActivity = mean(sum(acNeurons(:,recentBin:t),2));
-            acInput = acActivity/50;
-            
             in = 0.5*vStim(t)*contrasts(c);
             prob = 0.2*exp(in*10-5)./(exp(in*10-5)+1);
             
             firstBin = max([1 t-500]);
-            recentSpikes = sum(v1Neurons(n,firstBin:t))/20;
+            recentSpikes = sum(v1Neurons(n,firstBin:t))/10;
             refract = 0.75*exp(-10*(recentSpikes-1))./(exp(-10*(recentSpikes-1))+1)+0.25;
             
             prob = prob*refract;
@@ -96,7 +96,7 @@ for c = 1:length(contrasts)
             prob = 0.2*exp(in*10-5)./(exp(in*10-5)+1);
             
             firstBin = max([1 t-500]);
-            recentSpikes = sum(av1Neurons(n,firstBin:t))/20;
+            recentSpikes = sum(av1Neurons(n,firstBin:t))/10;
             refract = 0.75*exp(-10*(recentSpikes-1))./(exp(-10*(recentSpikes-1))+1)+0.25;
             
             prob = prob*refract;
@@ -116,6 +116,8 @@ for c = 1:length(contrasts)
     meanFR(1,c) = mean(mean(v1FR(:,1000:1300),2));
     stdFR(1,c) = std(mean(v1FR(:,1000:1300),2));
     varFR(1,c) = std(mean(v1FR(:,1000:1300),2)).^2;
+    frTrain(1,c,:) = mean(v1FR);
+    v1means(c,:) = mean(v1FR(:,1000:1300),2)';
     
     av1FR = zeros(size(av1Neurons));
     for t = 1:totalTime
@@ -129,6 +131,8 @@ for c = 1:length(contrasts)
     meanFR(2,c) = mean(mean(av1FR(:,1000:1300),2));
     stdFR(2,c) = std(mean(av1FR(:,1000:1300),2));
     varFR(2,c) = std(mean(av1FR(:,1000:1300),2)).^2;
+    frTrain(2,c,:) = mean(av1FR);
+    av1means(c,:) = mean(av1FR(:,1000:1300),2)';
 end
 figure;hold on;
 plot(contrasts,meanFR(1,:),'Color',[0 0 0]);
@@ -146,6 +150,63 @@ plot(contrasts,varFR(1,:)./meanFR(1,:),'Color',[0 0 0]);
 plot(contrasts,varFR(2,:)./meanFR(2,:),'Color',[0 0 1]);
 title('Fano factor');
 
+figure;hold on;
+for c = 1:length(contrasts)
+    plot((-200:1200)./1000,squeeze(frTrain(1,c,800:2200)),'Color',[0 0 0 0.2*c]);
+end
+
+figure;hold on;
+plot((-200:1200)./1000,squeeze(squeeze(frTrain(1,c,800:2200))));
+plot((-200:1200)./1000,squeeze(squeeze(frTrain(2,c,800:2200))));
+
+cvMean = zeros(2,5);
+cvStd = zeros(2,5);
+for c = 1:5
+    cv = zeros(2,10);
+    for r = 1:length(cv)
+        v1ms = randsample(v1means(c,:),10,'true');
+        temp = std(v1ms)./mean(v1ms);
+        cv(1,r) = temp;
+        
+        av1ms = randsample(av1means(c,:),10,'true');
+        temp = std(av1ms)./mean(av1ms);
+        cv(2,r) = temp;
+    end
+    cvMean(1,c) = mean(cv(1,:));
+    cvStd(1,c) = std(cv(1,:))./sqrt(size(cv(1,:),2));
+    
+    cvMean(2,c) = mean(cv(2,:));
+    cvStd(2,c) = std(cv(2,:))./sqrt(size(cv(2,:),2));
+end
+figure;hold on;
+hA = area(contrasts,[cvMean(1,:)-cvStd(1,:); 2*cvStd(1,:)]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+hA = area(contrasts,[cvMean(2,:)-cvStd(2,:); 2*cvStd(2,:)]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 1];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+
+plot(contrasts,cvMean(1,:),'Color',[0 0 0]);
+plot(contrasts,cvMean(2,:),'Color',[0 0 1]);
+
+for c = 1:5
+    ddMeanMean(c) = mean(av1means(c,:) - v1means(c,:));
+    ddMeanStd(c) = std(av1means(c,:))./sqrt(size(av1means(c,:),2));
+end
+figure;hold on;
+hA = area(contrasts,[ddMeanMean-ddMeanStd; 2*ddMeanStd]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(contrasts,ddMeanMean,'Color',[0 0 0]);
 
 % acFR = zeros(size(acNeurons));
 % for t = 1:totalTime
@@ -190,3 +251,49 @@ figure; hold on;
 plot(x,m);
 plot(x,s);
 plot(x,v);
+
+
+%%
+
+rasterColorMap = 'copper';
+map = colormap(rasterColorMap);close;
+rasterColors = map(round(linspace(1,length(map),5)),:);
+
+%%
+vStim = [zeros(1,100) ones(1,1000) zeros(1,100)];
+intensity = 0:0.01:1;
+stds = zeros(1,length(intensity));
+frs = zeros(1,length(intensity));
+for i = 1:length(intensity)
+    i
+    tempFR = zeros(1,100);
+    for r = 1:100
+        v1n = zeros(1,1200);
+        for t = 1:1200
+            in = intensity(i);
+            prob = exp(in*10-5)./(exp(in*10-5)+1);
+            
+            firstBin = max([1 t-500]);
+            recentSpikes = sum(v1n(1,firstBin:t))/10;
+            refract = 0.75*exp(-10*(recentSpikes-1))./(exp(-10*(recentSpikes-1))+1)+0.25;
+            
+            prob = prob;
+            v1n(1,t) = randsample([0 1],1,true,[1-prob prob]);
+        end
+        frt = zeros(1,1200);
+        for t = 1:1200
+            firstBin = max([1 t-9]);
+            spikes = sum(v1n(1,firstBin:t));
+            fr = spikes*100;
+            frt(t) = fr;
+        end
+        tempFR(r) = mean(frt(1,200:500));
+    end
+    stds(i) = std(tempFR);
+    frs(i) = mean(tempFR);
+end
+figure;
+plot(intensity,stds);
+
+figure;
+plot(intensity,stds./frs)
