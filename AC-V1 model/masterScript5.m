@@ -1,20 +1,17 @@
 
-totalUnits = 10;
+totalUnits = 150;
 
-repeats = 5;
+repeats = 10;
 
 contrasts = [0 0.25 0.5 0.75 1];
-vStim = [zeros(1,1000) ones(1,1000) zeros(1,1000)];
-aStim = [zeros(1,1000) ones(1,1000) zeros(1,1000)];
-
-totalTime = length(vStim);
 
 meanFR = zeros(2,length(contrasts));
 stdFR = zeros(2,length(contrasts));
+varFR = zeros(2,length(contrasts));
 
 
 %%
-percentOrientation = 0.3;
+percentOrientation = 0.5;
 orientationSelectiveUnits = round(totalUnits*percentOrientation);
 
 orientations = 0:30:330;
@@ -31,101 +28,90 @@ end
 
 %%
 stimResponses = cell(2,length(contrasts));
+coefVar = zeros(2,totalUnits,length(contrasts));
+fanoFac = zeros(2,totalUnits,length(contrasts));
 for c = 1:length(contrasts)
     vResponses = zeros(totalUnits,length(orientations),repeats);
     avResponses = zeros(totalUnits,length(orientations),repeats);
     
     for o = 1:length(orientations)
+        v1Neurons = zeros(totalUnits,repeats);
+        av1Neurons = zeros(totalUnits,repeats);
+        
         for r = 1:repeats
-            acNeurons = zeros(totalUnits,totalTime);
-            v1Neurons = zeros(totalUnits,totalTime);
-            av1Neurons = zeros(totalUnits,totalTime);
-            for t = 1:totalTime
-                [c o r t]
-                for a = 1:size(acNeurons,1)
-                    in = aStim(t);
-                    prob = 0.2*exp(in*10-5)./(exp(in*10-5)+1);
-                    acNeurons(a,t) = randsample([0 1],1,true,[1-prob prob]);
+            
+            for n = 1:totalUnits
+                if n<=orientationSelectiveUnits
+                    in = 0.5*contrasts(c)*tuningCurves(n,o);
+                else
+                    in = 0.5*contrasts(c);
                 end
                 
-                for n = 1:size(v1Neurons,1)
-                    if n<=orientationSelectiveUnits
-                        in = 0.5*vStim(t)*contrasts(c)*tuningCurves(n,o);
-                    else
-                        in = 0.5*vStim(t)*contrasts(c);
-                    end
-                    prob = 0.2*exp(in*10-5)./(exp(in*10-5)+1);
-                    
-                    firstBin = max([1 t-500]);
-                    recentSpikes = sum(v1Neurons(n,firstBin:t))/20;
-                    refract = 0.75*exp(-10*(recentSpikes-1))./(exp(-10*(recentSpikes-1))+1)+0.25;
-                    
-                    prob = prob*refract;
-                    v1Neurons(n,t) = randsample([0 1],1,true,[1-prob prob]);
+                prob = 200*exp(in*10-5)./(exp(in*10-5)+1);
+                stdev = 50*exp(in*10-5)./(exp(in*10-5)+1);
+                
+                v1Neurons(n,r) = prob + randn*stdev;
+            end
+            
+            for n = 1:totalUnits
+                acInput = 0.1;
+                if n<=orientationSelectiveUnits
+                    in = 0.5*contrasts(c)*tuningCurves(n,o) + acInput;
+                else
+                    in = 0.5*contrasts(c) + acInput;
                 end
                 
-                for n = 1:size(av1Neurons,1)
-                    recentBin = max([1 t-10]);
-                    acActivity = mean(sum(acNeurons(:,recentBin:t),2));
-                    acInput = acActivity/20;
-                    
-                    if n<=orientationSelectiveUnits
-                        in = 0.5*vStim(t)*contrasts(c)*tuningCurves(n,o) + acInput;
-                    else
-                        in = 0.5*vStim(t)*contrasts(c) + acInput;
-                    end
-                    prob = 0.2*exp(in*10-5)./(exp(in*10-5)+1);
-                    
-                    firstBin = max([1 t-500]);
-                    recentSpikes = sum(av1Neurons(n,firstBin:t))/20;
-                    refract = 0.75*exp(-10*(recentSpikes-1))./(exp(-10*(recentSpikes-1))+1)+0.25;
-                    
-                    prob = prob*refract;
-                    av1Neurons(n,t) = randsample([0 1],1,true,[1-prob prob]);
-                end
+                prob = 200*exp(in*10-5)./(exp(in*10-5)+1);
+                stdev = 50*exp(in*10-5)./(exp(in*10-5)+1);
+                
+                av1Neurons(n,r) = prob + randn*stdev;
             end
             
-            v1FR = zeros(size(v1Neurons));
-            for t = 1:totalTime
-                for n = 1:size(v1Neurons,1)
-                    firstBin = max([1 t-9]);
-                    spikes = sum(v1Neurons(n,firstBin:t));
-                    fr = spikes*100;
-                    v1FR(n,t) = fr;
-                end
-            end
-            meanFR(1,c) = mean(mean(v1FR(:,1000:1300),2));
-            stdFR(1,c) = std(mean(v1FR(:,1000:1300),2));
-            varFR(1,c) = std(mean(v1FR(:,1000:1300),2)).^2;
+            %             v1FR = zeros(size(v1Neurons));
+            %             for t = 1:totalTime
+            %                 for n = 1:size(v1Neurons,1)
+            %                     firstBin = max([1 t-9]);
+            %                     spikes = sum(v1Neurons(n,firstBin:t));
+            %                     fr = spikes*100;
+            %                     v1FR(n,t) = fr;
+            %                 end
+            %             end
             
-            vResponses(:,o,r) = mean(v1FR(:,1000:1300),2);
+%             meanFR(1,c) = mean(v1Neurons);
+%             stdFR(1,c) = std(v1Neurons);
+%             varFR(1,c) = std(v1Neurons).^2;
             
             
-            av1FR = zeros(size(av1Neurons));
-            for t = 1:totalTime
-                for n = 1:size(av1Neurons,1)
-                    firstBin = max([1 t-9]);
-                    spikes = sum(av1Neurons(n,firstBin:t));
-                    fr = spikes*100;
-                    av1FR(n,t) = fr;
-                end
-            end
-            meanFR(2,c) = mean(mean(av1FR(:,1000:1300),2));
-            stdFR(2,c) = std(mean(av1FR(:,1000:1300),2));
-            varFR(2,c) = std(mean(av1FR(:,1000:1300),2)).^2;
             
-            avResponses(:,o,r) = mean(av1FR(:,1000:1300),2);
+            
+            %             av1FR = zeros(size(av1Neurons));
+            %             for t = 1:totalTime
+            %                 for n = 1:size(av1Neurons,1)
+            %                     firstBin = max([1 t-9]);
+            %                     spikes = sum(av1Neurons(n,firstBin:t));
+            %                     fr = spikes*100;
+            %                     av1FR(n,t) = fr;
+            %                 end
+            %             end
+            
+%             meanFR(2,c) = mean(av1Neurons);
+%             stdFR(2,c) = std(av1Neurons);
+%             varFR(2,c) = std(av1Neurons).^2;
+            
+            
         end
+        
+        vResponses(:,o,:) = v1Neurons;
+        avResponses(:,o,:) = av1Neurons;
     end
-    
     stimResponses{1,c} = vResponses;
     stimResponses{2,c} = avResponses;
+    
+    coefVar(1,:,c) = mean(std(vResponses,[],3)./mean(vResponses,3),2);
+    coefVar(2,:,c) = mean(std(avResponses,[],3)./mean(avResponses,3),2);
+    fanoFac(1,:,c) = mean((std(vResponses,[],3).^2)./mean(vResponses,3),2);
+    fanoFac(2,:,c) = mean((std(avResponses,[],3).^2)./mean(avResponses,3),2);
 end
-
-%%
-figure;
-tc = mean(vResponses(1,:,:),3);
-polarplot(orientations*2*pi/360,tc);
 
 %%
 choiceMap = cell(2,length(contrasts)); %v and av, by contrasts
@@ -328,17 +314,44 @@ imagesc(mean(choiceMap{2,5},3));
 
 
 figure;hold on;
-plot(contrasts,meanFR(1,:),'Color',[0 0 0]);
-plot(contrasts,stdFR(1,:),'Color',[0 0 0]);
-plot(contrasts,meanFR(2,:),'Color',[0 0 1]);
-plot(contrasts,stdFR(2,:),'Color',[0 0 1]);
-
-figure;hold on;
-plot(contrasts,stdFR(1,:)./meanFR(1,:),'Color',[0 0 0]);
-plot(contrasts,stdFR(2,:)./meanFR(2,:),'Color',[0 0 1]);
+y1Mean = squeeze(mean(coefVar(1,:,:),2))';
+y2Mean = squeeze(mean(coefVar(2,:,:),2))';
+y1Std = squeeze(std(coefVar(1,:,:),[],2))'./sqrt(totalUnits);
+y2Std = squeeze(std(coefVar(2,:,:),[],2))'./sqrt(totalUnits);
+hA = area(contrasts,[y1Mean-y1Std; 2*y1Std]')
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+hA = area(contrasts,[y2Mean-y2Std; 2*y2Std]')
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 1];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(contrasts,y1Mean,'Color',[0 0 0]);
+plot(contrasts,y2Mean,'Color',[0 0 1]);
+ylim([0.2 0.3]);
 title('Coefficient of Variation');
 
 figure;hold on;
-plot(contrasts,varFR(1,:)./meanFR(1,:),'Color',[0 0 0]);
-plot(contrasts,varFR(2,:)./meanFR(2,:),'Color',[0 0 1]);
+y1Mean = squeeze(mean(fanoFac(1,:,:),2))';
+y2Mean = squeeze(mean(fanoFac(2,:,:),2))';
+y1Std = squeeze(std(fanoFac(1,:,:),[],2))'./sqrt(totalUnits);
+y2Std = squeeze(std(fanoFac(2,:,:),[],2))'./sqrt(totalUnits);
+hA = area(contrasts,[y1Mean-y1Std; 2*y1Std]')
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+hA = area(contrasts,[y2Mean-y2Std; 2*y2Std]')
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 1];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(contrasts,y1Mean,'Color',[0 0 0]);
+plot(contrasts,y2Mean,'Color',[0 0 1]);
 title('Fano factor');

@@ -1,5 +1,5 @@
 
-close all;
+% close all;
 clear;
 
 dt = 1; %ms
@@ -22,18 +22,21 @@ y = 0.2*exp(x*10-5)./(exp(x*10-5)+1);
 figure;
 plot(x,y);
 ylim([0 1])
+title('Probability of firing');
 
 % FR decay
-x = 0:0.01:1;
-y = exp(-10*x+0.5)./(exp(-10*x+5)+1);
-figure;
-plot(x,y);
+% x = 0:0.01:1;
+% y = exp(-10*x+0.5)./(exp(-10*x+5)+1);
+% figure;
+% plot(x,y);
+% title('FR decay');
 
 
-x = 0:0.01:1;
+x = 0:0.01:5;
 y = 0.75*exp(-10*(x-1))./(exp(-10*(x-1))+1)+0.25;
 figure;
 plot(x,y);
+title('FR decay');
 
 trials = zeros(1,100);
 burst = zeros(1,100);
@@ -81,7 +84,7 @@ for c = 1:length(contrasts)
             
             firstBin = max([1 t-500]);
             recentSpikes = sum(v1Neurons(n,firstBin:t))/10;
-            refract = 0.75*exp(-10*(recentSpikes-1))./(exp(-10*(recentSpikes-1))+1)+0.25;
+            refract = 0.75*exp(-1*(recentSpikes-1))./(exp(-1*(recentSpikes-1))+1)+0.25;
             
             prob = prob*refract;
             v1Neurons(n,t) = randsample([0 1],1,true,[1-prob prob]);
@@ -97,7 +100,8 @@ for c = 1:length(contrasts)
             
             firstBin = max([1 t-500]);
             recentSpikes = sum(av1Neurons(n,firstBin:t))/10;
-            refract = 0.75*exp(-10*(recentSpikes-1))./(exp(-10*(recentSpikes-1))+1)+0.25;
+            refract = 0.75*exp(-1*(recentSpikes-1))./(exp(-1*(recentSpikes-1))+1)+0.25;
+            refract = -0.4*recentSpikes + 1;
             
             prob = prob*refract;
             av1Neurons(n,t) = randsample([0 1],1,true,[1-prob prob]);
@@ -260,40 +264,55 @@ map = colormap(rasterColorMap);close;
 rasterColors = map(round(linspace(1,length(map),5)),:);
 
 %%
-vStim = [zeros(1,100) ones(1,1000) zeros(1,100)];
+vStim = [zeros(1,500) ones(1,1000) zeros(1,100)];
 intensity = 0:0.01:1;
 stds = zeros(1,length(intensity));
 frs = zeros(1,length(intensity));
 for i = 1:length(intensity)
     i
-    tempFR = zeros(1,100);
-    for r = 1:100
-        v1n = zeros(1,1200);
-        for t = 1:1200
-            in = intensity(i);
-            prob = exp(in*10-5)./(exp(in*10-5)+1);
+    repeats = 500;
+    tempFR = zeros(1,repeats);
+    recents = zeros(250,1000);
+    refs = zeros(250,1000);
+    for r = 1:repeats
+        v1n = zeros(1,1000);
+        for t = 1:1000
+            in = intensity(i)*vStim(t);
+            prob = 0.2*exp(in*10-5)./(exp(in*10-5)+1);
             
             firstBin = max([1 t-500]);
             recentSpikes = sum(v1n(1,firstBin:t))/10;
-            refract = 0.75*exp(-10*(recentSpikes-1))./(exp(-10*(recentSpikes-1))+1)+0.25;
+            refract = 0.75*exp(-5*(recentSpikes-1))./(exp(-5*(recentSpikes-1))+1)+0.25;
+            recents(r,t) = recentSpikes;
+            refs(r,t) = refract;
             
-            prob = prob;
+            prob = prob*refract;
             v1n(1,t) = randsample([0 1],1,true,[1-prob prob]);
         end
-        frt = zeros(1,1200);
-        for t = 1:1200
+        frt = zeros(1,1000);
+        for t = 1:1000
             firstBin = max([1 t-9]);
             spikes = sum(v1n(1,firstBin:t));
             fr = spikes*100;
             frt(t) = fr;
         end
-        tempFR(r) = mean(frt(1,200:500));
+        tempFR(r) = mean(frt(1,500:800));
     end
     stds(i) = std(tempFR);
     frs(i) = mean(tempFR);
 end
 figure;
+plot(intensity,frs);
+title('Firing rate');
+
+figure;
 plot(intensity,stds);
+title('Standard deviation');
 
 figure;
 plot(intensity,stds./frs)
+title('Coefficient of variation');
+
+figure;
+plot(intensity,(stds.^2) ./ frs);
+title('Fano factor');
