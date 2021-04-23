@@ -1,25 +1,26 @@
 
 clear;
 
-experiment = 'EP009';
-mouseID = 'AW155';
+experiment = 'EP012';
+mouseID = 'AW180';
 session = 'Session2';
-date = '20201119';
+date = '20210406-2';
 stimPath = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVmultiContrastDriftingGratingsWhiteNoise_stimInfo']);
 
 analysisWindow = [-100 1200]; %ms relative to stimulus onset
 quantWindow = [0 300]; %ms relative to stimulus onset
-quantWindow = [300 1000];
 baselineWindow = [-90 0]; %ms relative to stimulus onset
+pupilQuantWindow = [0.5 2.5]; %seconds
 
 frBinWidth = 10; %ms
 
 dataFolder = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
 dataFiles = dir(fullfile(dataFolder,'*AV_driftingGratingsMultiContrast_whiteNoise*'));
 
-% newDir = fullfile('D:\KiloSort\',mouseID,session,folder,'OptoNoiseResponses');
-newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'AVMultiContrastDriftingGratingsWhiteNoise_Recat2');
-figureDir = fullfile(newDir,'Figures2');
+pupilFile = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'Pupil video','pupilData.mat');
+
+newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'AVMultiContrastDriftingGratingsWhiteNoise_pupil');
+figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);
 end
@@ -33,6 +34,9 @@ indices = stimInfo.index(:,1);
 repeats = stimInfo.repeats;
 orientations = stimInfo.orientations;
 contrasts = stimInfo.contrasts;
+bootstrapRepeats = 200;
+
+load(pupilFile);
 
 totalUnits = length(dataFiles);
 
@@ -47,15 +51,32 @@ baselineScalar = 1000/(baselineWindow(2)-baselineWindow(1));
 binEdges = analysisWindow(1)+frBinWidth:1:analysisWindow(2);
 
 lightResponsiveUnits = [];
-orientationSelectiveUnits = [];
-directionSelectiveUnits = [];
+orientationSelectiveUnitsLight = [];
+directionSelectiveUnitsLight = [];
+orientationSelectiveUnitsOR = [];
+directionSelectiveUnitsOR = [];
+orientationSelectiveUnitsAND = [];
+directionSelectiveUnitsAND = [];
 soundResponsiveUnits = [];
 singleUnits = [];
 multiUnits = [];
 
+lightResponsiveUnitsGLM = [];
+soundResponsiveUnitsGLM = [];
+lightSoundInteractGLM = [];
+
 rasterColorMap = 'hsv';
 map = colormap(rasterColorMap);close;
 rasterColors = map(round(linspace(1,length(map),length(orientations))),:);
+
+normPupil = zeros(length(indices),repeats,121);
+for ii = 1:size(pupilData,1)
+    for rr = 1:size(pupilData,2)
+        trace = pupilData(ii,rr,:);
+        theMean = nanmean(trace(1:30));
+        normPupil(ii,rr,:) = (trace-theMean) ./ theMean;
+    end
+end
 
 for n = 1:totalUnits
     n
@@ -70,6 +91,9 @@ for n = 1:totalUnits
     frTrain = zeros(uniqueEvents,binCount);
     frTrainTrials = zeros(uniqueEvents,repeats,binCount);
     quantTrials = zeros(uniqueEvents,repeats);
+    
+    glmSound = zeros(uniqueEvents,repeats);
+    glmLight = zeros(uniqueEvents,repeats);
     
     for u = 1:uniqueEvents
         eventID = indices(u);
@@ -102,6 +126,9 @@ for n = 1:totalUnits
             prePost(e,1) = histcounts(trialSpikes,[baselineWindow(1) baselineWindow(2)]);
             prePost(e,2) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)]);
             quantTrials(u,e) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)])*quantScalar;
+            
+            glmSound(u,e) = stimInfo.index(eventID,4);
+            glmLight(u,e) = stimInfo.index(eventID,3);
         end
         
         spikeRaster{u,1} = rasterX;
@@ -150,6 +177,25 @@ for n = 1:totalUnits
         multiUnits = [multiUnits neuronNumber];
     end
     
+    totalTrials = length(stimInfo.order);
+    lightCol = reshape(glmLight,[totalTrials 1]);
+    soundCol = reshape(glmSound,[totalTrials 1]);
+    responseCol = reshape(trialResponse/quantScalar,[totalTrials 1]);
+    glmOutput = fitglm([lightCol soundCol],responseCol,'interactions','distr','poisson','link','log');
+    glmPval = glmOutput.Coefficients.pValue(2:end);
+    
+    if glmPval(1)<0.05
+        lightResponsiveUnitsGLM = [lightResponsiveUnitsGLM neuronNumber];
+    end
+    if glmPval(2)<0.05
+        soundResponsiveUnitsGLM = [soundResponsiveUnitsGLM neuronNumber];
+    end
+    if glmPval(3)<0.05
+        lightSoundInteractGLM = [lightSoundInteractGLM neuronNumber];
+    end
+    unitData(n).glmPval = glmPval;
+    unitData(n).glmOutput = glmOutput;
+    
     anovaMat = [];
     for c = 1:length(contrasts)
         baseInd = (c-1)*length(orientations);
@@ -167,27 +213,100 @@ for n = 1:totalUnits
         soundResponsiveUnits = [soundResponsiveUnits neuronNumber];
     end
     
-    if pAV(1)<0.05
+    if (glmPval(1)<0.05) || (glmPval(3)<0.05)
         c=5;
         baseInd = (c-1)*length(orientations);
         visMeanResp = meanResponse(baseInd+1:baseInd+length(orientations),4);
-        [~, maxInd] = max(visMeanResp);
-        oppInd = mod(maxInd+6-1,length(orientations))+1;
-        orthInd = [mod(maxInd+3-1,length(orientations)) mod(maxInd-3-1,length(orientations))]+1;
+        [~, maxIndV] = max(visMeanResp);
+        oppIndV = mod(maxIndV+6-1,length(orientations))+1;
+        orthIndV = [mod(maxIndV+3-1,length(orientations)) mod(maxIndV-3-1,length(orientations))]+1;
+        
+        avBaseInd = (c-1)*length(orientations)+length(orientations)*length(contrasts);
+        audvisMeanResp = meanResponse(avBaseInd+1:avBaseInd+length(orientations),4);
+        [~, maxIndAV] = max(audvisMeanResp);
+        oppIndAV = mod(maxIndAV+6-1,length(orientations))+1;
+        orthIndAV = [mod(maxIndAV+3-1,length(orientations)) mod(maxIndAV-3-1,length(orientations))]+1;
+        
+        maxResponsesV = trialResponse(baseInd+maxIndV,:);
+        orthResponsesV = reshape(trialResponse(baseInd+orthIndV,:),[1 2*repeats]);
+        oppResponsesV = trialResponse(baseInd+oppIndV,:);
+        maxResponsesAV = trialResponse(avBaseInd+maxIndAV,:);
+        orthResponsesAV = reshape(trialResponse(avBaseInd+orthIndAV,:),[1 2*repeats]);
+        oppResponsesAV = trialResponse(avBaseInd+oppIndAV,:);
         
         
-        [~, pDir] = ttest2(trialResponse(baseInd+maxInd,:),trialResponse(baseInd+oppInd,:));
-        if pDir<0.05
-            directionSelectiveUnits = [directionSelectiveUnits neuronNumber];
+        tempDSIv = zeros(1,bootstrapRepeats);
+        realDSIv = (meanResponse(baseInd+maxIndV,4)-meanResponse(baseInd+oppIndV,4))...
+            / (meanResponse(baseInd+maxIndV,4)+meanResponse(baseInd+oppIndV,4));
+        poolv = [trialResponse(baseInd+maxIndV,:) trialResponse(baseInd+oppIndV,:)];
+        tempDSIav = zeros(1,bootstrapRepeats);
+        realDSIav = (meanResponse(avBaseInd+maxIndAV,4)-meanResponse(avBaseInd+oppIndAV,4))...
+            / (meanResponse(avBaseInd+maxIndAV,4)+meanResponse(avBaseInd+oppIndAV,4));
+        poolav = [trialResponse(avBaseInd+maxIndAV,:) trialResponse(avBaseInd+oppIndAV,:)];
+        for bsr = 1:bootstrapRepeats
+            bootMaxIndices = randsample(length(poolv),repeats,'false');
+            bootMax = poolv(bootMaxIndices);
+            bootOpp = poolv(~ismember(1:length(poolv),bootMaxIndices));
+            tDSI = abs((mean(bootMax)-mean(bootOpp))/(mean(bootMax)+mean(bootOpp)));
+            tempDSIv(bsr) = tDSI;
+            
+            bootMaxIndices = randsample(length(poolav),repeats,'false');
+            bootMax = poolav(bootMaxIndices);
+            bootOpp = poolav(~ismember(1:length(poolav),bootMaxIndices));
+            tDSI = abs((mean(bootMax)-mean(bootOpp))/(mean(bootMax)+mean(bootOpp)));
+            tempDSIav(bsr) = tDSI;
+        end
+        if realDSIv > prctile(tempDSIv,95)
+            directionSelectiveUnitsLight = [directionSelectiveUnitsLight neuronNumber];
+            unitData(n).DSI = [realDSIv realDSIav];
+        end
+        if realDSIv > prctile(tempDSIv,95) || realDSIav > prctile(tempDSIav,95)
+            directionSelectiveUnitsOR = [directionSelectiveUnitsOR neuronNumber];
+            unitData(n).DSI = [realDSIv realDSIav];
+        end
+        if realDSIv > prctile(tempDSIv,95) && realDSIav > prctile(tempDSIav,95)
+            directionSelectiveUnitsAND = [directionSelectiveUnitsAND neuronNumber];
+            unitData(n).DSI = [realDSIv realDSIav];
         end
         
-        [~, pOrient] = ttest2(trialResponse(baseInd+maxInd,:),[trialResponse(baseInd+orthInd(1),:) trialResponse(baseInd+orthInd(2),:)]);
-        if pOrient<0.05
-            orientationSelectiveUnits = [orientationSelectiveUnits neuronNumber];
+        tempOSIv = zeros(1,bootstrapRepeats);
+        realOSIv = (mean(maxResponsesV)-mean(orthResponsesV))...
+            / (mean(maxResponsesV)+mean(orthResponsesV));
+        poolv = [maxResponsesV orthResponsesV];
+        tempOSIav = zeros(1,bootstrapRepeats);
+        realOSIav = (mean(maxResponsesAV)-mean(orthResponsesAV))...
+            / (mean(maxResponsesAV)+mean(orthResponsesAV));
+        poolav = [maxResponsesAV orthResponsesAV];
+        for bsr = 1:bootstrapRepeats
+            bootMaxIndices = randsample(length(poolv),repeats,'false');
+            bootMax = poolv(bootMaxIndices);
+            bootOrth = poolv(~ismember(1:length(poolv),bootMaxIndices));
+            tOSI = abs((mean(bootMax)-mean(bootOrth))/(mean(bootMax)+mean(bootOrth)));
+            tempOSIv(bsr) = tOSI;
+            
+            bootMaxIndices = randsample(length(poolav),repeats,'false');
+            bootMax = poolav(bootMaxIndices);
+            bootOrth = poolav(~ismember(1:length(poolav),bootMaxIndices));
+            tOSI = abs((mean(bootMax)-mean(bootOrth))/(mean(bootMax)+mean(bootOrth)));
+            tempOSIav(bsr) = tOSI;
+        end
+        if realOSIv > prctile(tempOSIv,95)
+            orientationSelectiveUnitsLight = [orientationSelectiveUnitsLight neuronNumber];
+            unitData(n).OSI = [realOSIv realOSIav];
+        end
+        if realOSIv > prctile(tempOSIv,95) || realOSIav > prctile(tempOSIav,95)
+            orientationSelectiveUnitsOR = [orientationSelectiveUnitsOR neuronNumber];
+            unitData(n).OSI = [realOSIv realOSIav];
+        end
+        if realOSIv > prctile(tempOSIv,95) && realOSIav > prctile(tempOSIav,95)
+            orientationSelectiveUnitsAND = [orientationSelectiveUnitsAND neuronNumber];
+            unitData(n).OSI = [realOSIv realOSIav];
         end
     else
         pDir = 1;
         pOrient=1;
+        realOSIv = 0;
+        realDSIv = 0;
     end
         
     
@@ -233,8 +352,9 @@ for n = 1:totalUnits
     end
     suptitle({['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n)...
         '), unitType = ' num2str(nData.CellInfo(6))] ['Light responsive = ' num2str(pAV(1))...
-        ', Sound responsive = ' num2str(pAV(2)) ', Orientation selective = ' num2str(pOrient)...
-        ', Direction selective = ' num2str(pDir)]});
+        ', Sound responsive = ' num2str(pAV(2)) ', Orientation selective = ' num2str(realOSIv)...
+        ', Direction selective = ' num2str(realDSIv)] ['Light GLM = ' num2str(glmPval(1))...
+        ', Sound GLM = ' num2str(glmPval(2))]});
     
     saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.fig']));
     saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.jpg']));
@@ -250,9 +370,12 @@ for n = 1:totalUnits
         evIdx = 1 + (c-1)*length(orientations);
         idxOffset = length(orientations)*length(contrasts);
         
-        polarplot(2*pi*orientations./360,meanResponse(evIdx:(evIdx+length(orientations)-1),4),'Color',[0 0 0],'LineWidth',2);
+        orientCoords =[2*pi*orientations./360 2*pi*orientations(1)/360];
+        vPolar = [meanResponse(evIdx:(evIdx+length(orientations)-1),4); meanResponse(evIdx,4)];
+        avPolar = [meanResponse((evIdx+idxOffset):(evIdx+idxOffset+length(orientations)-1),4); meanResponse(evIdx+idxOffset,4)];
+        polarplot(orientCoords,vPolar,'Color',[0 0 0],'LineWidth',2);
         hold on;
-        polarplot(2*pi*orientations./360,meanResponse((evIdx+idxOffset):(evIdx+idxOffset+length(orientations)-1),4),'Color',[0 0 1],'LineWidth',2);
+        polarplot(orientCoords,avPolar,'Color',[0 0 1],'LineWidth',2);
         title(['Cont = ' num2str(contrasts(c))]);
         tempLim = rlim;
         if max(tempLim)>limMax
@@ -265,8 +388,9 @@ for n = 1:totalUnits
     end
     suptitle({['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n)...
         '), unitType = ' num2str(nData.CellInfo(6))] ['Light responsive = ' num2str(pAV(1))...
-        ', Sound responsive = ' num2str(pAV(2)) ', Orientation selective = ' num2str(pOrient)...
-        ', Direction selective = ' num2str(pDir)]});
+        ', Sound responsive = ' num2str(pAV(2)) ', Orientation selective = ' num2str(realOSIv)...
+        ', Direction selective = ' num2str(realDSIv)] ['Light GLM = ' num2str(glmPval(1))...
+        ', Sound GLM = ' num2str(glmPval(2))]});
     saveas(f2,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response polar plots.fig']));
     saveas(f2,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response polar plots.jpg']));
     close(f2);
@@ -317,12 +441,44 @@ for n = 1:totalUnits
     title(['m_V, b_V = ' num2str(pVis) ',    m_A_V, b_A_V = ' num2str(pVisAud)]);
     suptitle({['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n)...
         '), unitType = ' num2str(nData.CellInfo(6))] ['Light responsive = ' num2str(pAV(1))...
-        ', Sound responsive = ' num2str(pAV(2)) ', Orientation selective = ' num2str(pOrient)...
-        ', Direction selective = ' num2str(pDir)]});
+        ', Sound responsive = ' num2str(pAV(2)) ', Orientation selective = ' num2str(realOSIv)...
+        ', Direction selective = ' num2str(realDSIv)] ['Light GLM = ' num2str(glmPval(1))...
+        ', Sound GLM = ' num2str(glmPval(2))]});
     saveas(f5,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response variance.fig']));
     saveas(f5,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response variance.jpg']));
     close(f5);
     
+    f6 = figure;
+    set(f6,'Position',[25 200 1500 350]);
+    meanPupil = nanmean(normPupil(:,:,46:106),3);
+    for c = 1:length(contrasts)
+        relevantIndicesV = ((c-1)*length(orientations)+1) : (c*length(orientations));
+        relevantIndicesAV = relevantIndicesV + length(contrasts)*length(orientations);
+        
+        vDat = reshape(trialResponse(relevantIndicesV,:),[1 length(relevantIndicesV)*repeats]);
+        avDat = reshape(trialResponse(relevantIndicesAV,:),[1 length(relevantIndicesAV)*repeats]);
+        
+        pupilV = reshape(meanPupil(relevantIndicesV,:),[1 length(relevantIndicesV)*repeats]);
+        pupilAV = reshape(meanPupil(relevantIndicesAV,:),[1 length(relevantIndicesAV)*repeats]);
+        subplot(1,length(contrasts),c); hold on;
+        scatter(pupilV,vDat,[],[0 0 0],'.');
+        scatter(pupilAV,avDat,[],[0 0 1],'.');
+        
+        exclude = find(isnan(pupilV) | isnan(pupilAV));
+        vDat(exclude)=[];avDat(exclude)=[];pupilV(exclude)=[];pupilAV(exclude)=[];
+        [CC pp] = corrcoef([vDat avDat],[pupilV pupilAV]);
+        [CCl ppl] = corrcoef([vDat],[pupilV]);
+        [CCs pps] = corrcoef([avDat],[pupilAV]);
+        title({[num2str(CC(2,1)) ', p = ' num2str(pp(2,1))]...
+            [num2str(CCl(2,1)) ', p(vis) = ' num2str(ppl(2,1))]...
+            [num2str(CCs(2,1)) ', p(audvis) = ' num2str(pps(2,1))]});
+        
+        pupilCorrelation(c,:) = [CC(2,1) pp(2,1) CCl(2,1) ppl(2,1) CCs(2,1) pps(2,1)];
+    end
+    unitData(n).pupilCorrelation = pupilCorrelation;
+    saveas(f6,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' pupil correlation.fig']));
+    saveas(f6,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' pupil correlation.jpg']));
+    close(f6);
 end
 
 
@@ -334,11 +490,17 @@ analysisParams.analysisWindow = analysisWindow;
 analysisParams.frBinWidth = frBinWidth;
 analysisParams.quantWindow = quantWindow;
 analysisParams.baselineWindow = baselineWindow;
+analysisParams.quantScalar = quantScalar;
+analysisParams.binEdges = binEdges;
 
 responsiveUnits.soundResponsiveUnits = intersect(soundResponsiveUnits,[singleUnits multiUnits]);
 responsiveUnits.lightResponsiveUnits = intersect(lightResponsiveUnits,[singleUnits multiUnits]);
-responsiveUnits.directionSelectiveUnits = intersect(directionSelectiveUnits,[singleUnits multiUnits]);
-responsiveUnits.orientationSelectiveUnits = intersect(orientationSelectiveUnits,[singleUnits multiUnits]);
+responsiveUnits.directionSelectiveUnits = intersect(directionSelectiveUnitsLight,[singleUnits multiUnits]);
+responsiveUnits.directionSelectiveUnitsOR = intersect(directionSelectiveUnitsOR,[singleUnits multiUnits]);
+responsiveUnits.directionSelectiveUnitsAND = intersect(directionSelectiveUnitsAND,[singleUnits multiUnits]);
+responsiveUnits.orientationSelectiveUnits = intersect(orientationSelectiveUnitsLight,[singleUnits multiUnits]);
+responsiveUnits.orientationSelectiveUnitsOR = intersect(orientationSelectiveUnitsOR,[singleUnits multiUnits]);
+responsiveUnits.orientationSelectiveUnitsAND = intersect(orientationSelectiveUnitsAND,[singleUnits multiUnits]);
 responsiveUnits.multiUnits = multiUnits;
 responsiveUnits.singleUnits = singleUnits;
 
@@ -346,7 +508,9 @@ responsiveUnits.soundAndLight = intersect(responsiveUnits.soundResponsiveUnits,r
 responsiveUnits.soundAndOrientation = intersect(responsiveUnits.soundResponsiveUnits,responsiveUnits.orientationSelectiveUnits);
 responsiveUnits.lightAndOrientation = intersect(responsiveUnits.lightResponsiveUnits,responsiveUnits.orientationSelectiveUnits);
 
-
+responsiveUnitsGLM.soundResponsiveUnits = intersect(soundResponsiveUnitsGLM,[singleUnits multiUnits]);
+responsiveUnitsGLM.lightResponsiveUnits = intersect(lightResponsiveUnitsGLM,[singleUnits multiUnits]);
+responsiveUnitsGLM.lightSoundInteractUnits = intersect(lightSoundInteractGLM,[singleUnits multiUnits]);
 
 normalizedResponseCurves = cell(length(contrasts),2);
 orientationCurves = cell(length(contrasts),2);
@@ -393,21 +557,6 @@ for n = 1:totalUnits
     end
 end
 
-f3 = figure;
-set(f3,'Position',[25 200 1500 400]);
-for c = 1:length(contrasts)
-    subplot(1,length(contrasts),c);hold on;
-    plot(linspace(-180,180,length(orientations)+1),mean(normalizedResponseCurves{c,1}),'Color',[0 0 0],'LineWidth',2);
-    plot(linspace(-180,180,length(orientations)+1),mean(normalizedResponseCurves{c,2}),'Color',[0 0 1],'LineWidth',2);
-    ylabel('Normalized firing rate');
-    xlabel('\Delta orientation (degrees)');
-    xticks(-180:90:180);
-    ylim([0 1])
-    title(['Cont = ' num2str(contrasts(c))]);
-end
-legend({'Light','Light/Sound'});
-suptitle({'Neuron-wise orientation preference, +/- white noise'});
-saveas(f3,fullfile(newDir,'Neuron-wise orientation preference'));
 
 f4 = figure;
 set(f4,'Position',[25 200 1500 400]);
@@ -421,40 +570,8 @@ for c = 1:length(contrasts)
 end
 suptitle({'Population orientation preference, +/- white noise'});
 saveas(f4,fullfile(newDir,'Population orientation preference'));
-%
-% f6 = figure;hold on;
-% slopes = zeros(0,2);
-% yint = zeros(0,2);
-% for n = 1:totalUnits
-%     if ismember(unitData(n).neuronNumber,soundResponsiveUnits) && unitData(n).type~=0
-% %     if unitData(n).type~=0
-%         slopes = [slopes; unitData(n).fanoFit(1) unitData(n).fanoFit(3)];
-%         yint = [yint; unitData(n).fanoFit(2) unitData(n).fanoFit(4)];
-%     end
-% end
-% scatter(slopes(:,1),yint(:,1),[],[0 0 0],'filled');
-% scatter(slopes(:,2),yint(:,2),[],[0 0 1],'filled');
-% [hslopes pslopes] = ttest(slopes(:,1),slopes(:,2));
-% [hint pint] = ttest(yint(:,1),yint(:,2));
-% xlabel('Slope');
-% ylabel('Y-intercept');
-% title(['Slopes p = ' num2str(pslopes) ', y-int p = ' num2str(pint)]);
-% suptitle({'Mean response to variance relationship'});
-% saveas(f6,fullfile(newDir,'Population variance analysis'));
-% subplot(1,2,1);hold on;
-% histogram(slopes(:,1));
-% histogram(slopes(:,2));
-% [~, pSlopes] = ttest2(slopes(:,1),slopes(:,2));
-% title(['p = ' num2str(pSlopes)]);
-%
-% subplot(1,2,2);hold on;
-% histogram(yint(:,1));
-% histogram(yint(:,2));
-% [~, pYint] = ttest2(yint(:,1),yint(:,2));
-% title(['p = ' num2str(pYint)]);
 
 
-
-save(fullfile(newDir,'AVMultiContrastDriftingGratingsWhiteNoiseData.mat'),'unitData','analysisParams','responsiveUnits');
-responsiveUnits
+save(fullfile(newDir,'AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat'),'unitData','analysisParams','responsiveUnits','responsiveUnitsGLM');
+responsiveUnitsGLM
 

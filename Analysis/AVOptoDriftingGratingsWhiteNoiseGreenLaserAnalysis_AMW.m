@@ -1,11 +1,11 @@
 
 clear;
 
-experiment = 'EP006';
-mouseID = 'AW135';
-session = 'Session1';
-date = '20200813';
-stimPath = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVoptoDriftingGratingsWhiteNoise_stimInfo']);
+experiment = 'EP011';
+mouseID = 'AW178';
+session = 'Session6';
+date = '20210329-2';
+stimPath = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVDriftingGratingsWhiteNoise_greenLaser_stimInfo']);
 
 analysisWindow = [-100 1200]; %ms relative to stimulus onset
 quantWindow = [0 300]; %ms relative to stimulus onset
@@ -13,11 +13,11 @@ baselineWindow = [-90 0]; %ms relative to stimulus onset
 
 frBinWidth = 10; %ms
 
-dataFolder = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
+dataFolder = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
 dataFiles = dir(fullfile(dataFolder,'*AVopto_driftingGratings_whiteNoise_laser*'));
 
 % newDir = fullfile('D:\KiloSort\',mouseID,session,folder,'OptoNoiseResponses');
-newDir = fullfile('E:\Electrophysiology\',experiment,mouseID,date,'AVOptoDriftingGratingsWhiteNoiseLaser');
+newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'AVOptoDriftingGratingsWhiteNoiseLaser');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);
@@ -226,7 +226,7 @@ for n = 1:totalUnits
     
     saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.fig']));
     saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.jpg']));
-%     close(f1);
+    close(f1);
     
     
     f2 = figure;
@@ -259,7 +259,7 @@ for n = 1:totalUnits
         ', Sound-modulated = ' num2str(p(5)) ', ' num2str(p(6))]});
     saveas(f2,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response polar plots.fig']));
     saveas(f2,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response polar plots.jpg']));
-%     close(f2);
+    close(f2);
     
     
 %     f5 = figure; hold on;
@@ -322,6 +322,7 @@ analysisParams.analysisWindow = analysisWindow;
 analysisParams.frBinWidth = frBinWidth;
 analysisParams.quantWindow = quantWindow;
 analysisParams.baselineWindow = baselineWindow;
+analysisParams.binEdges = binEdges;
 
 responsiveUnits.soundResponsiveUnits = intersect(soundResponsiveUnits,[singleUnits multiUnits]);
 responsiveUnits.lightResponsiveUnits = intersect(lightResponsiveUnits,[singleUnits multiUnits]);

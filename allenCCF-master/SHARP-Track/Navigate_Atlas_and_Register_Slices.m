@@ -8,11 +8,8 @@
 
 % directory of histology
 % processed_images_folder = 'C:\Drive\Histology\cfos\processed'; 
-<<<<<<< HEAD
-processed_images_folder = '/Volumes/AARON DATA/Tracing/Tracing 7 (retro V1)/Confocal WF for image registration/processed';
-=======
-processed_images_folder = 'E:\Tracing\Tracing 7 (retro V1)\Confocal WF for image registration\processed';
->>>>>>> 0d4f8276496bb36ae913f6c439cb4b86c0271d53
+% processed_images_folder = 'D:\Tracing\Tracing 7 (retro V1)\Confocal WF for image registration\processed';
+processed_images_folder = 'D:\Tracing\Tracing 7 (retro V1)\Test\processed';
 
 % name the saved probe points, to avoid overwriting another set of probes going in the same folder
 probe_save_name_suffix = '_1'; 

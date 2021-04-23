@@ -8,11 +8,13 @@
 % * remember to run one cell at a time, instead of the whole script at once *
 
 % directory of histology images
-image_folder = 'E:\Tracing\Tracing 7 (retro V1)\Confocal WF for image registration\';
+% image_folder = 'D:\Tracing\Tracing 7 (retro V1)\Confocal WF for image registration\';
+image_folder = 'D:\Tracing\Tracing 7 (retro V1)\Test\';
 
 % directory to save the processed images -- can be the same as the above image_folder
 % results will be put inside a new folder called 'processed' inside of this image_folder
-save_folder = 'E:\Tracing\Tracing 7 (retro V1)\Confocal WF for image registration\';
+% save_folder = 'D:\Tracing\Tracing 7 (retro V1)\Confocal WF for image registration\';
+save_folder = 'D:\Tracing\Tracing 7 (retro V1)\Test\';
 
 % name of images, in order anterior to posterior or vice versa
 % once these are downsampled they will be named ['original name' '_processed.tif']

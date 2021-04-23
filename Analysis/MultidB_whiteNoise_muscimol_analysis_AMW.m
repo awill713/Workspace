@@ -1,10 +1,10 @@
 
 clear;
 
-experiment = 'EP007';
-mouseID = 'AW142';
-session = 'Session1';
-date = '20200912';
+experiment = 'EP009';
+mouseID = 'AW156';
+session = 'Session2';
+date = '20201121';
 stimPath = fullfile('D:\Electrophysiology\',experiment);
 stimFile = '20200826_noise_100rep_multidB_400k_005_stimInfo';
 
@@ -15,8 +15,12 @@ baselineWindow = [-90 0]; %ms relative to stimulus onset
 frBinWidth = 10; %ms
 
 dataFolder = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
-dataFilesPre = dir(fullfile(dataFolder,'*ephys_whiteNoise_multidB_pre-injection*'));
-dataFilesPost = dir(fullfile(dataFolder,'*ephys_whiteNoise_multidB_post-injection*'));
+dataFiles{1} = dir(fullfile(dataFolder,'*ephys_whiteNoise_multidB_pre-injection*'));
+dataFiles{2} = dir(fullfile(dataFolder,'*ephys_whiteNoise_multidB_15min_post-injection*'));
+dataFiles{3} = dir(fullfile(dataFolder,'*ephys_whiteNoise_multidB_30min_post-injection*'));
+dataFiles{4} = dir(fullfile(dataFolder,'*ephys_whiteNoise_multidB_45min_post-injection*'));
+dataFiles{5} = dir(fullfile(dataFolder,'*ephys_whiteNoise_multidB_60min_post-injection*'));
+times = {'Pre inj','15 min post','30 min post','45 min post','60 min post'};
 
 % newDir = fullfile('D:\KiloSort\',mouseID,session,folder,'OptoNoiseResponses');
 newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'WhiteNoiseMultidB');
@@ -28,12 +32,12 @@ if ~exist(figureDir)
     mkdir(figureDir);
 end
 
-load(fullfile(stimPath,stimFile));
+load(fullfile(stimPath,mouseID,date,stimFile));
 uniqueEvents = size(stimInfo.index,1);
 indices = stimInfo.index(:,1);
 repeats = stimInfo.repeats;
 
-totalUnits = length(dataFilesPre);
+totalUnits = length(dataFiles{1});
 
 binCount = analysisWindow(2)-analysisWindow(1)-frBinWidth+1; %sliding window
 frScalar = 1000/frBinWidth;
@@ -54,20 +58,27 @@ map = colormap(rasterColorMap);close;
 rasterColors = map(round(linspace(1,length(map),uniqueEvents)),:);
 % rasterColors = [0 0 0; 0 1 0; 0 1 1];
 
+timePoints = length(dataFiles);
+
+quantColorMap = 'copper';
+qmap = colormap(quantColorMap);close;
+quantColors = qmap(round(linspace(1,length(qmap),timePoints)),:);
+
+
 for n = 1:totalUnits
     n
-    nData = load(fullfile(dataFilesPre(n).folder,dataFilesPre(n).name));
+    nData = load(fullfile(dataFiles{1}(n).folder,dataFiles{1}(n).name));
     
     eventTimes = nData.Events;
     spikeTimes = nData.SpikeData(1,:);
     
-    spikeRaster = cell(2,uniqueEvents,3); %spike times (1), trial number (y-axis) (2), color (3)
-    meanResponse = zeros(2,uniqueEvents,5); %index (1),  mean baseline (2), baseline std (3), mean response (4), response std (5)
-    trialResponse = zeros(2,uniqueEvents,repeats);
-    baselineTrials = zeros(2,uniqueEvents,repeats);
-    frTrain = zeros(2,uniqueEvents,binCount);
-    frTrainTrials = zeros(2,uniqueEvents,repeats,binCount);
-    quantTrials = zeros(2,uniqueEvents,repeats);
+    spikeRaster = cell(timePoints,uniqueEvents,3); %spike times (1), trial number (y-axis) (2), color (3)
+    meanResponse = zeros(timePoints,uniqueEvents,5); %index (1),  mean baseline (2), baseline std (3), mean response (4), response std (5)
+    trialResponse = zeros(timePoints,uniqueEvents,repeats);
+    baselineTrials = zeros(timePoints,uniqueEvents,repeats);
+    frTrain = zeros(timePoints,uniqueEvents,binCount);
+    frTrainTrials = zeros(timePoints,uniqueEvents,repeats,binCount);
+    quantTrials = zeros(timePoints,uniqueEvents,repeats);
     
     %% Pre injection data
     for u = 1:uniqueEvents
@@ -128,7 +139,9 @@ for n = 1:totalUnits
     end
     
     %% Post injection data
-    nData = load(fullfile(dataFilesPre(n).folder,dataFilesPost(n).name));
+    for tp = 2:timePoints
+        
+    nData = load(fullfile(dataFiles{tp}(n).folder,dataFiles{tp}(n).name));
     
     eventTimes = nData.Events;
     spikeTimes = nData.SpikeData(1,:);
@@ -161,22 +174,23 @@ for n = 1:totalUnits
             end
             prePost(e,1) = histcounts(trialSpikes,[baselineWindow(1) baselineWindow(2)]);
             prePost(e,2) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)]);
-            quantTrials(2,u,e) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)])*quantScalar;
+            quantTrials(tp,u,e) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)])*quantScalar;
         end
         
-        spikeRaster{2,u,1} = rasterX;
-        spikeRaster{2,u,2} = rasterY;
-        spikeRaster{2,u,3} = color;
-        meanResponse(2,u,1) = eventID;
-        meanResponse(2,u,2) = mean(prePost(:,1))*baselineScalar;
-        meanResponse(2,u,3) = std(prePost(:,1))*baselineScalar/sqrt(repeats);
-        meanResponse(2,u,4) = mean(prePost(:,2))*quantScalar;
-        meanResponse(2,u,5) = std(prePost(:,2))*quantScalar/sqrt(repeats);
-        trialResponse(2,u,:) = prePost(:,2)*quantScalar;
-        baselineTrials(2,u,:) = prePost(:,1)*baselineScalar;
+        spikeRaster{tp,u,1} = rasterX;
+        spikeRaster{tp,u,2} = rasterY;
+        spikeRaster{tp,u,3} = color;
+        meanResponse(tp,u,1) = eventID;
+        meanResponse(tp,u,2) = mean(prePost(:,1))*baselineScalar;
+        meanResponse(tp,u,3) = std(prePost(:,1))*baselineScalar/sqrt(repeats);
+        meanResponse(tp,u,4) = mean(prePost(:,2))*quantScalar;
+        meanResponse(tp,u,5) = std(prePost(:,2))*quantScalar/sqrt(repeats);
+        trialResponse(tp,u,:) = prePost(:,2)*quantScalar;
+        baselineTrials(tp,u,:) = prePost(:,1)*baselineScalar;
         
-        frTrainTrials(2,u,:,:) = spikeFR; %JUST NUMBER OF SPIKES IN BIN, NOT FIRING RATE
-        frTrain(2,u,:) = mean(spikeFR,1)*frScalar;
+        frTrainTrials(tp,u,:,:) = spikeFR; %JUST NUMBER OF SPIKES IN BIN, NOT FIRING RATE
+        frTrain(tp,u,:) = mean(spikeFR,1)*frScalar;
+    end
     end
     
     %% Save and plot
@@ -199,49 +213,48 @@ for n = 1:totalUnits
     
     
     f1 = figure;
-    set(f1,'Position',[150 80 1250 700]);
-    subplot(1,4,1);
+    set(f1,'Position',[150 150 1250 500]);
+    for tp = 1:timePoints
+        subplot(1,timePoints,tp);
     for r = 1:size(spikeRaster,2)
-        scatter(spikeRaster{1,r,1},spikeRaster{1,r,2},[],spikeRaster{1,r,3},'.');
+        scatter(spikeRaster{tp,r,1},spikeRaster{tp,r,2},[],spikeRaster{tp,r,3},'.');
         hold on;
     end
     xlim([analysisWindow(1) analysisWindow(end)]);
     xlabel('Time (ms)');
     ylabel('Trial type');
-    title('Pre-injection');
-    
-    subplot(1,4,2);
-    for r = 1:size(spikeRaster,2)
-        scatter(spikeRaster{2,r,1},spikeRaster{2,r,2},[],spikeRaster{2,r,3},'.');
-        hold on;
+    title(times{tp});
     end
-    xlim([analysisWindow(1) analysisWindow(end)]);
-    xlabel('Time (ms)');
-    ylabel('Trial type');
-    title('Post-injection');
+    suptitle({['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n)...
+        '), unitType = ' num2str(nData.CellInfo(6))] ['Sound responsive = ' num2str(pSound)]});
     
+    saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' rasters.fig']));
+    saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' rasters.jpg']));
+    close(f1);
     
-    subplot(1,4,3);
+    f2 = figure;
+    set(f2,'Position',[150 150 1000 400]);
+    subplot(1,2,1);
     hold on;
 %     plot(binEdges,squeeze(frTrain(1,uniqueEvents,:)),'Color',rasterColors(uniqueEvents,:));
 %     plot(binEdges,squeeze(frTrain(2,uniqueEvents,:)),'Color',rasterColors(uniqueEvents,:));
     plot(binEdges,squeeze(frTrain(1,uniqueEvents,:)),'Color',[0 0 0]);
-    plot(binEdges,squeeze(frTrain(2,uniqueEvents,:)),'Color',[0 0 1]);
+    plot(binEdges,squeeze(frTrain(timePoints,uniqueEvents,:)),'Color',[0 0 1]);
     xlabel('Time (ms)');
     ylabel('Firing rate (Hz)');
-    legend({'Pre-inj','Post-inj'});
+    legend({times{1},times{timePoints}});
     
-    subplot(1,4,4);
+    subplot(1,2,2);
     hold on;
-    xx = stimInfo.intensity;
-    yy = meanResponse(1,:,4);
-    err = meanResponse(1,:,5);
-    errr = errorbar(xx,yy,err);
-    errr.Color = [0 0 0];
-    yyPost = meanResponse(2,:,4);
-    errPost = meanResponse(2,:,5);
-    errrPost = errorbar(xx,yyPost,errPost);
-    errrPost.Color = [0 0 1];
+    for tp = 1:timePoints
+        xx = stimInfo.intensity;
+        yy = meanResponse(tp,:,4);
+        err = meanResponse(tp,:,5);
+        errr = errorbar(xx,yy,err);
+        errr.Color = quantColors(tp,:);
+        errr.LineWidth = 2;
+    end
+    legend(times);
     xlabel('Sound intensity');
     ylabel('Firing rate (Hz)');
     
@@ -249,9 +262,9 @@ for n = 1:totalUnits
     suptitle({['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n)...
         '), unitType = ' num2str(nData.CellInfo(6))] ['Sound responsive = ' num2str(pSound)]});
     
-    saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.fig']));
-    saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.jpg']));
-%     close(f1);
+    saveas(f2,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' PSTH and quant.fig']));
+    saveas(f2,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' PSTH and quant.jpg']));
+    close(f2);
     
 end
 
@@ -270,6 +283,35 @@ responsiveUnits.multiUnits = multiUnits;
 responsiveUnits.singleUnits = singleUnits;
 
 
-save(fullfile(newDir,'WhiteNoiseMultidBSaline_Data.mat'),'unitData','analysisParams','responsiveUnits');
+save(fullfile(newDir,'WhiteNoiseMultidBMuscimol_Data.mat'),'unitData','analysisParams','responsiveUnits');
 responsiveUnits
 
+
+meanQuants = cell(1,timePoints);
+for nn = 1:totalUnits
+    neuronNumber = unitData(nn).neuronNumber;
+    
+    if ismember(neuronNumber,responsiveUnits.soundResponsiveUnits)
+        for tp = 1:timePoints
+            mq = squeeze(unitData(nn).meanResponse(tp,:,4));
+            meanQuants{tp} = [meanQuants{tp}; mq];
+        end
+    end
+end
+for tp = 1:timePoints
+    meanMean(tp,:) = mean(meanQuants{tp});
+    stdMean(tp,:) = std(meanQuants{tp})./sqrt(size(meanQuants{tp},1));
+end
+f3 = figure;
+for tp = 1:timePoints
+    xx = stimInfo.intensity;
+    yy = meanMean(tp,:);
+    erx = stdMean(tp,:);
+    erplot = errorbar(xx,yy,erx);
+    erplot.Color = quantColors(tp,:);
+    erplot.LineWidth = 2;
+    hold on;
+end
+legend(times);
+xlabel('Sound intensity');
+ylabel('Firing rate (Hz)');

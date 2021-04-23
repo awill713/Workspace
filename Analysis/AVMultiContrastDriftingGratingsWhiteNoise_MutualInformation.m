@@ -2,19 +2,20 @@
 clear all;
 % close all;
 
-saveDir = fullfile('D:\Electrophysiology','EP004','MetaData - AVMultiContrastDriftingGratingsWhiteNoise');
+saveDir = fullfile('D:\Electrophysiology','EP010','MetaData - AVMultiContrastDriftingGratingsWhiteNoise');
 if ~exist(saveDir)
     mkdir(saveDir);
 end
 
-dataPaths{1} = fullfile('EP004','AW117','20200221-1');
-dataPaths{2} = fullfile('EP004','AW117','20200221-2');
-dataPaths{3} = fullfile('EP004','AW118','20200221-1');
-dataPaths{4} = fullfile('EP004','AW118','20200221-2');
-dataPaths{5} = fullfile('EP004','AW121','20200226-1');
-dataPaths{6} = fullfile('EP004','AW121','20200226-2');
-dataPaths{7} = fullfile('EP004','AW124','20200303-1');
-dataPaths{8} = fullfile('EP004','AW124','20200303-2');
+dataPaths{1} = fullfile('EP010','AW159','20201213-1');
+dataPaths{2} = fullfile('EP010','AW159','20201213-2');
+dataPaths{3} = fullfile('EP010','AW162','20210102-1');
+dataPaths{4} = fullfile('EP010','AW162','20210102-2');
+dataPaths{5} = fullfile('EP010','AW163','20210102-1');
+dataPaths{6} = fullfile('EP010','AW163','20210102-2');
+dataPaths{7} = fullfile('EP010','AW164','20210105');
+dataPaths{8} = fullfile('EP010','AW165','20210106-1');
+dataPaths{9} = fullfile('EP010','AW165','20210106-2');
 
 %which neurons to include
 onlySingleUnits = 0;
@@ -27,7 +28,7 @@ soundResponsive = 1;
 for dp = 1:length(dataPaths)
     dp
     %Load data
-    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
+    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_NEW','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
     load(dataFile);
     stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
     load(fullfile(stimPath.folder,stimPath.name));

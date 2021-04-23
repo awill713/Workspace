@@ -2,19 +2,20 @@
 clear all;
 % close all;
 
-saveDir = fullfile('E:\Electrophysiology','EP004','MetaData - AVMultiContrastDriftingGratingsWhiteNoise');
+saveDir = fullfile('D:\Electrophysiology','EP010','MetaData - AVMultiContrastDriftingGratingsWhiteNoise');
 if ~exist(saveDir)
     mkdir(saveDir);
 end
 
-dataPaths{1} = fullfile('EP004','AW117','20200221-1');
-dataPaths{2} = fullfile('EP004','AW117','20200221-2');
-dataPaths{3} = fullfile('EP004','AW118','20200221-1');
-dataPaths{4} = fullfile('EP004','AW118','20200221-2');
-dataPaths{5} = fullfile('EP004','AW121','20200226-1');
-dataPaths{6} = fullfile('EP004','AW121','20200226-2');
-dataPaths{7} = fullfile('EP004','AW124','20200303-1');
-dataPaths{8} = fullfile('EP004','AW124','20200303-2');
+% dataPaths{1} = fullfile('EP010','AW159','20201213-1');
+% dataPaths{2} = fullfile('EP010','AW159','20201213-2');
+% dataPaths{3} = fullfile('EP010','AW162','20210102-1');
+% dataPaths{4} = fullfile('EP010','AW162','20210102-2');
+% dataPaths{5} = fullfile('EP010','AW163','20210102-1');
+% dataPaths{6} = fullfile('EP010','AW163','20210102-2');
+% dataPaths{7} = fullfile('EP010','AW164','20210105');
+dataPaths{1} = fullfile('EP010','AW165','20210106-1');
+% dataPaths{9} = fullfile('EP010','AW165','20210106-2');
 
 %which neurons to include
 onlySingleUnits = 0;
@@ -23,14 +24,16 @@ lightResponsive = 1;
 orientationSelective = 1;
 soundResponsive = 1;
 
+infoBins = 10;
+lambda = cell(1,2);
 
 for dp = 1:length(dataPaths)
     dp
     %Load data
-    dataFile = fullfile('E:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
+    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_NEW_BSR_25bin','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
     load(dataFile);
-    stimPath = dir(fullfile('E:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
-    load(fullfile(stimPath.folder,stimPath.name));
+    stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
+    load(fullfile(stimPath(end).folder,stimPath(end).name));
     
     orientations = stimInfo.orientations;
     contrasts = stimInfo.contrasts;
@@ -38,17 +41,18 @@ for dp = 1:length(dataPaths)
     binCount = analysisParams.analysisWindow(2)-analysisParams.analysisWindow(1)-analysisParams.frBinWidth+1; %sliding window
     binEdges = analysisParams.analysisWindow(1)+analysisParams.frBinWidth:1:analysisParams.analysisWindow(2);
     
-    if ~exist('orientationCurves','var')
-        orientationInformation = cell(length(contrasts),2);
+    if ~exist('orientationInformation','var')
+        orientationInformation = cell(length(contrasts),3);
         lightInformation = cell(1,2);
     end
     
     for u  = 1:size(unitData,2)
         neuronNumber = unitData(u).neuronNumber;
         %% Light information
-        if (soundResponsive == ismember(neuronNumber,responsiveUnits.soundResponsiveUnits))...
-                && (lightResponsive == ismember(neuronNumber,responsiveUnits.lightResponsiveUnits))...
-                && unitData(u).type~=0
+        %          if (((ismember(neuronNumber,responsiveUnitsGLM.lightResponsiveUnits) &&...
+        %                 ismember(neuronNumber,responsiveUnitsGLM.soundResponsiveUnits))) ||...
+        %                 ismember(neuronNumber,responsiveUnitsGLM.lightSoundInteractUnits))
+        if ismember(neuronNumber,responsiveUnitsGLM.lightSoundInteractUnits)
             
             responses = unitData(u).frTrainTrials;
             
@@ -58,9 +62,13 @@ for dp = 1:length(dataPaths)
                 
                 vMax = max(max(responses(1:length(contrasts)*length(orientations))));
                 avMax = max(max(responses(1+length(contrasts)*length(orientations):2*length(contrasts)*length(orientations))));
+                vMin = min(min(responses(1:length(contrasts)*length(orientations))));
+                avMin = min(min(responses(1+length(contrasts)*length(orientations):2*length(contrasts)*length(orientations))));
+                theMax = max([vMax avMax]);
+                theMin = min([vMin avMin]);
                 
-                vHist = zeros(length(contrasts),vMax+1);
-                avHist = zeros(length(orientations),avMax+1);
+                vHist = zeros(length(contrasts),infoBins);
+                avHist = zeros(length(orientations),infoBins);
                 negEntropy = zeros(2,length(contrasts));
                 for c = 1:length(contrasts)
                     inds = (c-1)*length(orientations)+1 : c*length(orientations);
@@ -72,8 +80,8 @@ for dp = 1:length(dataPaths)
                     vResponses = responses(inds(vMaxOrient),:,b);
                     avResponses = responses(indsOffset(avMaxOrient),:,b);
                     
-                    vHist(c,:) = histcounts(vResponses,0:vMax+1,'Normalization','probability');
-                    avHist(c,:) = histcounts(avResponses,0:avMax+1,'Normalization','probability');
+                    vHist(c,:) = histcounts(vResponses,linspace(theMin,theMax,infoBins+1),'Normalization','probability');
+                    avHist(c,:) = histcounts(avResponses,linspace(theMin,theMax,infoBins+1),'Normalization','probability');
                     
                     vEnt = vHist(c,:).*log2(vHist(c,:)); vEnt(isnan(vEnt))=0;
                     avEnt = avHist(c,:).*log2(avHist(c,:)); avEnt(isnan(avEnt))=0;
@@ -102,9 +110,12 @@ for dp = 1:length(dataPaths)
         
         
         %% Orientation information
-        if (soundResponsive == ismember(neuronNumber,responsiveUnits.soundResponsiveUnits))...
-                && (orientationSelective == ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits))...
-                && unitData(u).type~=0
+        %         if (((ismember(neuronNumber,responsiveUnitsGLM.lightResponsiveUnits) &&...
+        %                 ismember(neuronNumber,responsiveUnitsGLM.soundResponsiveUnits))) ||...
+        %                 ismember(neuronNumber,responsiveUnitsGLM.lightSoundInteractUnits)) &&...
+        %                 ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits)
+        if ismember(neuronNumber,responsiveUnitsGLM.lightSoundInteractUnits) &&...
+                ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits)
             
             responses = unitData(u).frTrainTrials;
             
@@ -117,17 +128,29 @@ for dp = 1:length(dataPaths)
                 avResponses = responses(indsOffset,:,:);
                 
                 info = zeros(2,binCount);
+                tempLambda = zeros(2,binCount);
                 for b = 1:binCount
                     [dp 2 u c b]
                     vMax = max(max(vResponses(:,:,b)));
                     avMax = max(max(avResponses(:,:,b)));
+                    vMin = min(min(vResponses(:,:,b)));
+                    avMin = min(min(avResponses(:,:,b)));
+                    theMax = max([vMax avMax]);
+                    theMin = min([vMin avMin]);
+%                     vMax = max(max(mean(vResponses(:,:,b-9:b),3)));
+%                     avMax = max(max(mean(avResponses(:,:,b-9:b),3)));
+
+                    tempLambda(:,b) = [poissfit(reshape(vResponses(:,:,b),[1 120]));...
+                        poissfit(reshape(avResponses(:,:,b),[1 120]))];
                     
-                    vHist = zeros(length(orientations),vMax+1);
-                    avHist = zeros(length(orientations),avMax+1);
+                    vHist = zeros(length(orientations),infoBins);
+                    avHist = zeros(length(orientations),infoBins);
                     negEntropy = zeros(2,length(orientations));
                     for o = 1:length(orientations)
-                        vHist(o,:) = histcounts(vResponses(o,:,b),0:vMax+1,'Normalization','probability');
-                        avHist(o,:) = histcounts(avResponses(o,:,b),0:avMax+1,'Normalization','probability');
+                        vHist(o,:) = histcounts(vResponses(o,:,b),linspace(theMin,theMax,infoBins+1),'Normalization','probability');
+                        avHist(o,:) = histcounts(avResponses(o,:,b),linspace(theMin,theMax,infoBins+1),'Normalization','probability');
+%                         vHist(o,:) = histcounts(mean(vResponses(o,:,b-9:b),3),0:vMax+1,'Normalization','probability');
+%                         avHist(o,:) = histcounts(mean(avResponses(o,:,b-9:b),3),0:avMax+1,'Normalization','probability');
                         
                         vEnt = vHist(o,:).*log2(vHist(o,:)); vEnt(isnan(vEnt))=0;
                         avEnt = avHist(o,:).*log2(avHist(o,:)); avEnt(isnan(avEnt))=0;
@@ -151,6 +174,10 @@ for dp = 1:length(dataPaths)
                 end
                 orientationInformation{c,1} = [orientationInformation{c,1}; smooth(info(1,:))'];
                 orientationInformation{c,2} = [orientationInformation{c,2}; smooth(info(2,:))'];
+                orientationInformation{c,3} = [orientationInformation{c,3}; [dp u neuronNumber]];
+                
+                lambda{1,1} = [lambda{1,1}; tempLambda(1,:)];
+                lambda{1,2} = [lambda{1,2}; tempLambda(2,:)];
             end
         end
     end
@@ -205,9 +232,25 @@ for c = 1:length(contrasts)
     hA(2).EdgeColor = [1 1 1];
     plot(binEdges,smooth(mean(orientationInformation{c,1})),'Color',[0 0 0]);
     plot(binEdges,smooth(mean(orientationInformation{c,2})),'Color',[0 0 1]);
-    ylim([0 0.2]);
+%     ylim([0.05 0.22]);
     xlabel('Time (ms)');
     ylabel('Mutual information_{orientation} (bits)');
     title(['Cont = ' num2str(contrasts(c))]);
 end
 
+%% 
+f3 = figure;
+for c = 1:length(contrasts)
+    subplot(1,length(contrasts),c);hold on;
+    
+    vv = mean(orientationInformation{c,1}-mean(orientationInformation{1,1},2));
+    av = mean(orientationInformation{c,2}-mean(orientationInformation{1,1},2));
+    vv = smooth(vv,70);
+    av = smooth(av,70);
+    plot(binEdges,vv,'Color',[0 0 0]);
+    plot(binEdges,av,'Color',[0 0 1]);
+    ylim([-.02 0.1]);
+    xlabel('Time (ms)');
+    ylabel('Mutual information_{orientation} (bits)');
+    title(['Cont = ' num2str(contrasts(c))]);
+end

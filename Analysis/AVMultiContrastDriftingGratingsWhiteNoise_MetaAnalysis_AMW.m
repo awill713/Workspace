@@ -2,7 +2,7 @@
 clear all;
 % close all;
 
-saveDir = fullfile('D:\Electrophysiology','EP004','MetaData - AVMultiContrastDriftingGratingsWhiteNoise');
+saveDir = fullfile('D:\Electrophysiology','EP004','MetaData - AVMultiContrastDriftingGratingsWhiteNoise_final');
 if ~exist(saveDir)
     mkdir(saveDir);
 end
@@ -15,6 +15,10 @@ dataPaths{5} = fullfile('EP004','AW121','20200226-1');
 dataPaths{6} = fullfile('EP004','AW121','20200226-2');
 dataPaths{7} = fullfile('EP004','AW124','20200303-1');
 dataPaths{8} = fullfile('EP004','AW124','20200303-2');
+dataPaths{9} = fullfile('EP010','AW157','20201212-1');
+dataPaths{10} = fullfile('EP010','AW157','20201212-2');
+dataPaths{11} = fullfile('EP010','AW158','20201212-1');
+dataPaths{12} = fullfile('EP010','AW158','20201212-2');
 
 %which neurons to include
 onlySingleUnits = 0;
@@ -28,12 +32,12 @@ soundLightCount=0;soundOrientationCount=0;lightOrientationCount=0;
 allThree=0;
 soundUp = 0;soundDown = 0;
 
-orientationShuffles = 1000;
+orientationShuffles = 100;
 
 for dp = 1:length(dataPaths)
     dp
     %Load data
-    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
+    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_final','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
     load(dataFile);
     stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
     load(fullfile(stimPath.folder,stimPath.name));
@@ -73,10 +77,16 @@ for dp = 1:length(dataPaths)
         %                 || (orientationSelective && ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits))...
         %                 || (soundResponsive && ismember(neuronNumber,responsiveUnits.soundResponsiveUnits)))...
         %                 && (~onlySingleUnits || unitData(u).type==1) && unitData(u).type~=0
-        if (soundResponsive == ismember(neuronNumber,responsiveUnits.soundResponsiveUnits))...
-                && (lightResponsive && ismember(neuronNumber,responsiveUnits.lightResponsiveUnits))...
-                && (orientationSelective == ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits))...
-                && unitData(u).type~=0
+        
+        if ismember(neuronNumber,responsiveUnitsGLM.lightSoundInteractUnits) ||...
+                        (ismember(neuronNumber,responsiveUnitsGLM.lightResponsiveUnits) &&...
+                        ismember(neuronNumber,responsiveUnitsGLM.soundResponsiveUnits)) &&...
+                        (ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits) ||...
+                        ismember(neuronNumber,responsiveUnits.directionSelectiveUnits))
+%         if (soundResponsive == ismember(neuronNumber,responsiveUnits.soundResponsiveUnits))...
+%                 && (lightResponsive && ismember(neuronNumber,responsiveUnits.lightResponsiveUnits))...
+%                 && (orientationSelective == ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits))...
+%                 && unitData(u).type~=0
             
                             
             responses = unitData(u).meanResponse(:,4);
@@ -794,7 +804,6 @@ hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [0 0 1];
 hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
-
 plot(contrasts,meanFR(1,:),'Color',[0 0 0]);
 plot(contrasts,meanFR(2,:),'Color',[0 0 1]);
 xlabel('Contrast');

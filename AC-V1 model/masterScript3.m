@@ -4,7 +4,7 @@ totalUnits = 100;
 repeats = 10;
 
 % contrasts = [0 0.25 0.5 0.75 1];
-contrasts = [0 0.125 0.25 0.375 0.5];
+contrasts = [0 0.0625 0.125 0.1875 0.25 0.3125 0.375 0.4375 0.5 0.625 0.75 0.875 1];
 % contrasts = [0 0.25 0.5];
 vStim = [zeros(1,500) ones(1,1000) zeros(1,100)];
 aStim = [zeros(1,500) ones(1,1000) zeros(1,100)];
@@ -15,7 +15,7 @@ meanFR = zeros(2,length(contrasts));
 stdFR = zeros(2,length(contrasts));
 
 
-soundLevels = [0 0.25 0.5 0.75 1];
+soundLevels = [0 0.125 0.25 0.375 0.5 0.625 0.75 0.875 1];
 % soundLevels = [0 0.5 1];
 
 %%
@@ -49,7 +49,12 @@ for c = 1:length(contrasts)
             v1Neurons = zeros(totalUnits,totalTime);
             av1Neurons = zeros(totalUnits,totalTime);
             for t = 1:totalTime
-                [sl c o r t]
+                display([num2str(sl) '/' num2str(length(soundLevels)) ', '...
+                    num2str(c) '/' num2str(length(contrasts)) ', '...
+                    num2str(o) '/' num2str(length(orientations)) ', '...
+                    num2str(r) '/' num2str(repeats) ', '...
+                    num2str(t)]);
+                
                 for a = 1:size(acNeurons,1)
                     in = aStim(t)*dB;
                     prob = 0.2*exp(in*10-5)./(exp(in*10-5)+1);
@@ -75,7 +80,7 @@ for c = 1:length(contrasts)
                 for n = 1:size(av1Neurons,1)
                     recentBin = max([1 t-10]);
                     acActivity = mean(sum(acNeurons(:,recentBin:t),2));
-                    acInput = acActivity/20;
+                    acInput = acActivity/10; %it was /20, but made it /10 for this
                     
                     if n<=orientationSelectiveUnits
                         in = vStim(t)*contrasts(c)*tuningCurves(n,o) + acInput;
@@ -149,7 +154,11 @@ for n = 1:orientationSelectiveUnits
         %%Overall accuracy
         tempChoiceMap = zeros(2,length(orientations),length(orientations));
         for testDir = 1:length(orientations)
-            [n c testDir]
+%             [n sl c testDir]
+            display([num2str(n) '/' num2str(orientationSelectiveUnits) ', '...
+                num2str(sl) '/' num2str(length(soundLevels)) ', '...
+                num2str(c) '/' num2str(length(contrasts)) ', '...
+                num2str(testDir) '/' num2str(length(orientations))]);
             
             mleClassification = zeros(2,length(orientations));
             

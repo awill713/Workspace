@@ -4,11 +4,21 @@ function [outputDir] = maximumLikelihoodFunction(distData,probe)
 
 likelihoods = zeros(1,size(distData,2));
 for d = 1:length(likelihoods)
-    prob = 1;
+%     prob = 1;
+%     for nn = 1:size(distData,1)
+%         post = pdf(distData(nn,d),probe(nn));
+%         if post>0
+%             prob = pdf(distData(nn,d),probe(nn)) * prob;
+%         end
+%         [nn prob];
+%     end
+%     likelihoods(d) = prob;
+    
+    prob = 0;
     for nn = 1:size(distData,1)
         post = pdf(distData(nn,d),probe(nn));
         if post>0
-            prob = pdf(distData(nn,d),probe(nn)) * prob;
+            prob = log(pdf(distData(nn,d),probe(nn))) + prob;
         end
         [nn prob];
     end

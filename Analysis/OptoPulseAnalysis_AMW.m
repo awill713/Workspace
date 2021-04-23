@@ -2,15 +2,15 @@
 clear;
 
 experiment = 'EP008';
-mouseID = 'AW144';
+mouseID = 'AW172';
 session = 'Session1';
-date = '20200919';
+date = '20210311';
 % stimPath = 'D:\Code\Aaron\StimInfo\20190623_optoLaserPulse_1and5ms_400k_005_stimInfo';
 stimPath = 'C:\Users\Aaron\Documents\MATLAB\Workspace\Analysis\EphyStimInfo\20190623_optoLaserPulse_1and5ms_400k_005_stimInfo';
 analysisWindow = [-50 200]; %ms relative to stimulus onset
-quantWindow = [5 15]; %ms after stimulus onset
+quantWindow = [40 80]; %ms after stimulus onset, was 5-15
 frBinWidth = 10; %ms
-baselineWindow = [-10 0];
+baselineWindow = [-40 0];
 rasterColors = [0 0.447 0.741;... %blue
     0.850 0.325 0.098];    %orange
 
@@ -89,7 +89,7 @@ for n = 1:totalUnits
             
             %             frTrain(e,:) = histcounts(trialSpikes/1000,binEdges);
             prePost(e,1) = histcounts(trialSpikes,[baselineWindow(1) baselineWindow(2)]);
-%             prePost(e,2) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)]);
+            prePost(e,2) = histcounts(trialSpikes,[quantWindow(1) quantWindow(2)]);
 %                         prePost(e,2) = max(frTrain(e,(analysisWindow(1)/frBinWidth)*sign(analysisWindow(1))+1:end));
         end
         
@@ -97,7 +97,7 @@ for n = 1:totalUnits
         optoFR(d,:) = meanFrTrain*frScalar;
         
         peakBin(1,d) = min(find(meanFrTrain==max(meanFrTrain))); %min just in case there are multiple bins where it reaches an equal peak, choosing the earlier one
-        prePost(:,2) = frTrain(:,peakBin(1,d));
+%         prePost(:,2) = frTrain(:,peakBin(1,d));
         
         optoRaster{d,1} = rasterX;
         optoRaster{d,2} = rasterY;
@@ -109,7 +109,7 @@ for n = 1:totalUnits
         optoResponse(d,5) = std(prePost(:,2))*quantScalar/sqrt(length(prePost(:,2)));
         
         
-        [hh pp] = ttest2(prePost(:,1),prePost(:,2),'alpha',0.05/totalUnits/2);
+        [hh pp] = ttest2(prePost(:,1)*baselineScalar,prePost(:,2)*quantScalar,'alpha',0.05/totalUnits/2);
         h(d) = hh; h(isnan(h))=0;
         p(d) = pp; p(isnan(p))=1;
     end

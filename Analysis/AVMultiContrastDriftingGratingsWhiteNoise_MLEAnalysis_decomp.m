@@ -7,28 +7,15 @@ if ~exist(saveDir)
     mkdir(saveDir);
 end
 
-dataPaths{1} = fullfile('EP004','AW117','20200221-1');
-dataPaths{2} = fullfile('EP004','AW117','20200221-2');
-dataPaths{3} = fullfile('EP004','AW118','20200221-1');
-dataPaths{4} = fullfile('EP004','AW118','20200221-2');
-dataPaths{5} = fullfile('EP004','AW121','20200226-1');
-dataPaths{6} = fullfile('EP004','AW121','20200226-2');
-dataPaths{7} = fullfile('EP004','AW124','20200303-1');
-dataPaths{8} = fullfile('EP004','AW124','20200303-2');
-dataPaths{9} = fullfile('EP010','AW157','20201212-1');
-dataPaths{10} = fullfile('EP010','AW157','20201212-2');
-dataPaths{11} = fullfile('EP010','AW158','20201212-1');
-dataPaths{12} = fullfile('EP010','AW158','20201212-2');
-
-% dataPaths{13} = fullfile('EP010','AW159','20201213-1');
-% dataPaths{14} = fullfile('EP010','AW159','20201213-2');
-% dataPaths{15} = fullfile('EP010','AW162','20210102-1');
-% dataPaths{16} = fullfile('EP010','AW162','20210102-2');
-% dataPaths{17} = fullfile('EP010','AW163','20210102-1');
-% dataPaths{18} = fullfile('EP010','AW163','20210102-2');
-% dataPaths{19} = fullfile('EP010','AW164','20210105');
-% dataPaths{20} = fullfile('EP010','AW165','20210106-1');
-% dataPaths{21} = fullfile('EP010','AW165','20210106-2');
+dataPaths{1} = fullfile('EP010','AW159','20201213-1');
+dataPaths{2} = fullfile('EP010','AW159','20201213-2');
+dataPaths{3} = fullfile('EP010','AW162','20210102-1');
+dataPaths{4} = fullfile('EP010','AW162','20210102-2');
+dataPaths{5} = fullfile('EP010','AW163','20210102-1');
+dataPaths{6} = fullfile('EP010','AW163','20210102-2');
+dataPaths{7} = fullfile('EP010','AW164','20210105');
+dataPaths{8} = fullfile('EP010','AW165','20210106-2');
+dataPaths{9} = fullfile('EP010','AW165','20210106-2');
 
 %which neurons to include
 onlySingleUnits = 0;
@@ -41,7 +28,7 @@ soundResponsive = 1;
 for dp = 1:length(dataPaths)
     %     [randomize dp]
     %Load data
-    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_final','AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat');
+    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_NEW','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
     load(dataFile);
     stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
     load(fullfile(stimPath(end).folder,stimPath(end).name));
@@ -53,7 +40,6 @@ for dp = 1:length(dataPaths)
     if ~exist('choiceMap','var')
         choiceMap = cell(2,length(contrasts)); %v and av, by contrasts
         randomMap = cell(2,length(contrasts)); %v and av, by contrasts, trials shuffled
-        dpUnitCount = [];
     end
     quantScalar = 1000/(analysisParams.quantWindow(2)-analysisParams.quantWindow(1));
     
@@ -71,15 +57,13 @@ for dp = 1:length(dataPaths)
         if (ismember(neuronNumber,responsiveUnitsGLM.lightSoundInteractUnits) ||...
                 (ismember(neuronNumber,responsiveUnitsGLM.soundResponsiveUnits) &&...
                 ismember(neuronNumber,responsiveUnitsGLM.lightResponsiveUnits))) &&...
-                (ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits) ||...
-                ismember(neuronNumber,responsiveUnits.directionSelectiveUnits)) &&...
+                ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits)&&...
                 ismember(neuronNumber,[responsiveUnits.singleUnits responsiveUnits.multiUnits])
             
             neuronCount = neuronCount+1;
             neuronNumberLog = [neuronNumberLog; neuronCount neuronNumber u];
         end
     end
-    dpUnitCount = [dpUnitCount neuronCount];
     
     if neuronCount>0
         
@@ -136,29 +120,21 @@ for dp = 1:length(dataPaths)
                 tempChoiceMap(2,o,:) = mleClassification(2,:) / sum(mleClassification(2,:));
             end
             choiceMap{1,c} = cat(3,choiceMap{1,c},squeeze(tempChoiceMap(1,:,:)));
-            size(choiceMap{1,c});
+            size(choiceMap{1,c})
             choiceMap{2,c} = cat(3,choiceMap{2,c},squeeze(tempChoiceMap(2,:,:)));
         end
     end
 end
 
-viableDPs = size(choiceMap{1},3);
-
 meanMap = squeeze(mean(choiceMap{1,5},3));
 figure;imagesc(meanMap); 
 statsMat = [];
-Y=[];Sub=[];F1=[];F2=[];FACTNAMES = {'Contrast','Sound'};
 for c = 1:5
     clear tempV tempAV tempDiff
     for s=1:size(choiceMap{1,c},3)
         tempV(s) = mean(diag(choiceMap{1,c}(:,:,s)));
         tempAV(s) = mean(diag(choiceMap{2,c}(:,:,s)));
         tempDiff(s) = tempAV(s) - tempV(s);
-        
-        Y = [Y tempV(s) tempAV(s)];
-        Sub = [Sub s s];
-        F1 = [F1 c c];
-        F2 = [F2 0 1];
     end
     vAcc(c) = mean(tempV);
     vAccStd(c) = std(tempV)/sqrt(length(tempV));
@@ -198,65 +174,6 @@ hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
 plot(contrasts,diffAcc,'Color',[0 0 0]);
 
-[p,~,~] = anova2(statsMat,viableDPs,'off');
-stats = rm_anova2(Y,Sub,F1,F2,FACTNAMES)
+[p,~,~] = anova2(statsMat,9,'off')
 
-choiceTrace = zeros(2,length(contrasts),length(orientations)+1,size(choiceMap{1},3));
-accTrace = zeros(2,length(contrasts),length(orientations)+1);
-accSTD = zeros(2,length(contrasts),length(orientations)+1);
-for c = 1:5
-    for av = 1:2
-        for dp = 1:size(choiceTrace,4)
-            tempMap = choiceMap{av,c}(:,:,dp);
-            collapsed = zeros(length(orientations));
-            for o = 1:length(orientations)
-                shift = 7-o;
-                oTrace = tempMap(o,:);
-                oTrace = circshift(oTrace,shift);
-                collapsed(o,:) = oTrace;
-            end
-            collapsed = mean(collapsed);
-            collapsed = [collapsed, collapsed(1)];
-            choiceTrace(av,c,:,dp) = collapsed;
-        end
-    end
-    
-    accTrace(1,c,:) = squeeze(mean(choiceTrace(1,c,:,:),4));
-    accSTD(1,c,:) = squeeze(std(choiceTrace(1,c,:,:),[],4))/sqrt(size(choiceTrace,4));
-    accTrace(2,c,:) = squeeze(mean(choiceTrace(2,c,:,:),4));
-    accSTD(2,c,:) = squeeze(std(choiceTrace(2,c,:,:),[],4))/sqrt(size(choiceTrace,4));
-end
-
-xs = -180:30:180;
-figure;
-for c = 1:5
-    vv = squeeze((accTrace(1,c,:)))';
-    vvSTD = squeeze((accSTD(1,c,:)))';
-    aavv = squeeze((accTrace(2,c,:)))';
-    aavvSTD = squeeze((accSTD(2,c,:)))';
-    
-    subplot(1,5,c);hold on;
-    errorbar(xs,vv,vvSTD,'Color',[0 0 0],'LineWidth',1);
-    errorbar(xs,aavv,aavvSTD,'Color',[0 0 1],'LineWidth',1);
-    
-    ylim([0 0.3]);
-    title(['Contrast = ' num2str(contrasts(c))]);
-    
-    hA = area(xs,[vv-vvSTD; 2*vvSTD]')
-    hA(1).FaceAlpha = 0;
-    hA(1).EdgeColor = [1 1 1];
-    hA(2).FaceColor = [0 0 0];
-    hA(2).FaceAlpha = 0.5;
-    hA(2).EdgeColor = [1 1 1];
-    hA = area(xs,[aavv-aavvSTD; 2*aavvSTD]')
-    hA(1).FaceAlpha = 0;
-    hA(1).EdgeColor = [1 1 1];
-    hA(2).FaceColor = [0 0 1];
-    hA(2).FaceAlpha = 0.5;
-    hA(2).EdgeColor = [1 1 1];
-    
-    plot(xs,vv,'Color',[0 0 0]);
-    plot(xs,aavv,'Color',[0 0 1]);
-    
-end
-
+     

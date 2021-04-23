@@ -1,14 +1,12 @@
 
 clear;
 
-experiment = 'EP007';
-mouseID = 'AW139';
-session = 'Session2';
-date = '20200827-2';
-stimPath = fullfile('D:\Electrophysiology\',experiment);
-% stimFile = '20200720_noise_opto_100rep_70dB_400k_005_stimInfo';
-% stimFile = '20200720_noise_opto_100rep_90dB_400k_005_stimInfo';
-stimFile = '20200826_noise_100rep_multidB_400k_005_stimInfo';
+experiment = 'EP011';
+mouseID = 'AW178';
+session = 'Session3';
+date = '20210327-1';
+stimPath = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'StimInfo');
+stimFile = '20210219_multidBNoise_opto_50rep_400k_005_stimInfo';
 
 analysisWindow = [-100 400]; %ms relative to stimulus onset
 quantWindow = [0 100]; %ms relative to stimulus onset
@@ -17,10 +15,9 @@ baselineWindow = [-90 0]; %ms relative to stimulus onset
 frBinWidth = 10; %ms
 
 dataFolder = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
-dataFiles = dir(fullfile(dataFolder,'*ephys_whiteNoise_multidB*'));
+dataFiles = dir(fullfile(dataFolder,'*ephys_multidBNoise_laser*'));
 
-% newDir = fullfile('D:\KiloSort\',mouseID,session,folder,'OptoNoiseResponses');
-newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'WhiteNoiseMultidB');
+newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'WhiteNoiseMultidB_laser');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);
@@ -33,6 +30,7 @@ load(fullfile(stimPath,stimFile));
 uniqueEvents = size(stimInfo.index,1);
 indices = stimInfo.index(:,1);
 repeats = stimInfo.repeats;
+uniqueSounds = length(stimInfo.intensity);
 
 totalUnits = length(dataFiles);
 
@@ -47,12 +45,13 @@ baselineScalar = 1000/(baselineWindow(2)-baselineWindow(1));
 binEdges = analysisWindow(1)+frBinWidth:1:analysisWindow(2);
 
 soundResponsiveUnits = [];
+laserResponsiveUnits = [];
 singleUnits = [];
 multiUnits = [];
 
 rasterColorMap = 'copper';
 map = colormap(rasterColorMap);close;
-rasterColors = map(round(linspace(1,length(map),uniqueEvents)),:);
+rasterColors = map(round(linspace(1,length(map),uniqueSounds)),:);
 % rasterColors = [0 0 0; 0 1 0; 0 1 1];
 
 for n = 1:totalUnits
@@ -74,7 +73,7 @@ for n = 1:totalUnits
         eventID = indices(u);
         eventsOfInterest = find(stimInfo.order==eventID);
         
-        color = rasterColors(u,:);
+        color = rasterColors(mod(u-1,uniqueSounds)+1,:);
         
         spikeFR = zeros(length(eventsOfInterest),binCount);
         rasterX = [];
@@ -133,47 +132,73 @@ for n = 1:totalUnits
     end
     
     anovaMat = [];
-    for un = 1:uniqueEvents
+    for un = 1:uniqueSounds
         col = trialResponse(un,:)';
-        anovaMat = [anovaMat col];
+        laserCol = trialResponse(un+uniqueSounds,:)';
+        anovaMat = [anovaMat [col; laserCol]];
     end
-    pSound = anova1(anovaMat,[],'off');
-    if pSound<0.05
+    pValues = anova2(anovaMat,repeats,'off');
+    if pValues(1)<0.05
         soundResponsiveUnits = [soundResponsiveUnits neuronNumber];
+    end
+    if pValues(2)<0.05
+        laserResponsiveUnits = [laserResponsiveUnits neuronNumber];
     end
     
     f1 = figure;
     set(f1,'Position',[150 80 1250 700]);
-    subplot(1,3,1);
-    for r = 1:size(spikeRaster,1)
+    subplot(1,4,1);
+    for r = 1:uniqueSounds
         scatter(spikeRaster{r,1},spikeRaster{r,2},[],spikeRaster{r,3},'.');
         hold on;
     end
     xlim([analysisWindow(1) analysisWindow(end)]);
     xlabel('Time (ms)');
     ylabel('Trial type');
+    title('Sound only');
     
-    
-    subplot(1,3,2);
-    hold on;
-    for uni = 1:uniqueEvents
-        plot(binEdges,frTrain(uni,:),'Color',rasterColors(uni,:));
+    subplot(1,4,2);
+    for r = 1:uniqueSounds
+        scatter(spikeRaster{r+uniqueSounds,1},spikeRaster{r+uniqueSounds,2},[],spikeRaster{r+uniqueSounds,3},'.');
+        hold on;
     end
+    xlim([analysisWindow(1) analysisWindow(end)]);
+    xlabel('Time (ms)');
+    ylabel('Trial type');
+    title('Sound with laser');
+    
+    
+    subplot(1,4,3);
+    hold on;
+    baselineTrain = frTrain(1,:);
+    laserTrain = frTrain(1+uniqueSounds,:);
+    soundTrain = frTrain(uniqueSounds,:);
+    soundLaserTrain = frTrain(uniqueEvents,:);
+    plot(binEdges,baselineTrain,':','Color',rasterColors(1,:));
+    plot(binEdges,laserTrain,':','Color',[0 1 0]);
+    plot(binEdges,soundTrain,'Color',rasterColors(1,:));
+    plot(binEdges,soundLaserTrain,'Color',[0 1 0]);
     xlabel('Time (ms)');
     ylabel('Firing rate (Hz)');
+    legend('Baseline','Laser only','Noise','Noise+laser');
     
-    subplot(1,3,3);
+    subplot(1,4,4);
     hold on;
     xx = stimInfo.intensity;
-    yy = meanResponse(:,4);
-    err = meanResponse(:,5);
-    errorbar(xx,yy,err);
+    yy = meanResponse(1:uniqueSounds,4);
+    err = meanResponse(1:uniqueSounds,5);
+    errorbar(xx,yy,err,'Color',[0 0 0]);
+    lyy = meanResponse((1:uniqueSounds)+uniqueSounds,4);
+    lerr = meanResponse((1:uniqueSounds)+uniqueSounds,5);
+    errorbar(xx,lyy,lerr,'Color',[0 1 0]);
     xlabel('Sound intensity');
     ylabel('Firing rate (Hz)');
+    legend({'Sound only','Sound with laser'});
     
     
     suptitle({['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n)...
-        '), unitType = ' num2str(nData.CellInfo(6))] ['Sound responsive = ' num2str(pSound)]});
+        '), unitType = ' num2str(nData.CellInfo(6))] ['Sound responsive = ' num2str(pValues(1))...
+        ', Laser responsive = ' num2str(pValues(2))]});
     
     saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.fig']));
     saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.jpg']));
@@ -192,6 +217,7 @@ analysisParams.quantWindow = quantWindow;
 analysisParams.baselineWindow = baselineWindow;
 
 responsiveUnits.soundResponsiveUnits = intersect(soundResponsiveUnits,[singleUnits multiUnits]);
+responsiveUnits.laserResponsiveUnits = intersect(laserResponsiveUnits,[singleUnits multiUnits]);
 responsiveUnits.multiUnits = multiUnits;
 responsiveUnits.singleUnits = singleUnits;
 

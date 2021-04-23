@@ -2,7 +2,7 @@
 clear all;
 % close all;
 
-saveDir = fullfile('D:\Electrophysiology','EP004','MetaData - AVMultiContrastDriftingGratingsWhiteNoise','MLE model','Individual neurons - recat');
+saveDir = fullfile('D:\Electrophysiology','EP010','MetaData - AVMultiContrastDriftingGratingsWhiteNoise','MLE model','Individual neurons - recat');
 if ~exist(saveDir)
     mkdir(saveDir);
 end
@@ -15,6 +15,20 @@ dataPaths{5} = fullfile('EP004','AW121','20200226-1');
 dataPaths{6} = fullfile('EP004','AW121','20200226-2');
 dataPaths{7} = fullfile('EP004','AW124','20200303-1');
 dataPaths{8} = fullfile('EP004','AW124','20200303-2');
+dataPaths{9} = fullfile('EP010','AW157','20201212-1');
+dataPaths{10} = fullfile('EP010','AW157','20201212-2');
+dataPaths{11} = fullfile('EP010','AW158','20201212-1');
+dataPaths{12} = fullfile('EP010','AW158','20201212-2');
+
+% dataPaths{13} = fullfile('EP010','AW159','20201213-1');
+% dataPaths{14} = fullfile('EP010','AW159','20201213-2');
+% dataPaths{15} = fullfile('EP010','AW162','20210102-1');
+% dataPaths{16} = fullfile('EP010','AW162','20210102-2');
+% dataPaths{17} = fullfile('EP010','AW163','20210102-1');
+% dataPaths{18} = fullfile('EP010','AW163','20210102-2');
+% dataPaths{19} = fullfile('EP010','AW164','20210105');
+% dataPaths{20} = fullfile('EP010','AW165','20210106-1');
+% dataPaths{21} = fullfile('EP010','AW165','20210106-2');
 
 %which neurons to include
 onlySingleUnits = 0;
@@ -27,14 +41,15 @@ soundResponsive = 1;
 for dp = 1:length(dataPaths)
     
     %Load data
-    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Recat','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
+    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_final','AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat');
     load(dataFile);
     stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
-    load(fullfile(stimPath.folder,stimPath.name));
+    load(fullfile(stimPath(end).folder,stimPath(end).name));
     
     orientations = stimInfo.orientations;
     contrasts = stimInfo.contrasts;
     repeats = stimInfo.repeats;
+    quantScalar = 1000/(analysisParams.quantWindow(2)-analysisParams.quantWindow(1));
     
     if ~exist('choiceMap','var')
         choiceMap = cell(2,length(contrasts)); %v and av, by contrasts
@@ -45,10 +60,15 @@ for dp = 1:length(dataPaths)
     
     for u = 1:size(unitData,2)
         neuronNumber = unitData(u).neuronNumber;
-        if ismember(neuronNumber, responsiveUnits.soundResponsiveUnits)...
-                && (ismember(neuronNumber, responsiveUnits2.directionSelectiveUnits)...
-                || ismember(neuronNumber, responsiveUnits2.orientationSelectiveUnits))
-            
+%         if ismember(neuronNumber, responsiveUnitsGLM.lightSoundInteractUnits)...
+%                 && ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits)
+         if (ismember(neuronNumber,responsiveUnitsGLM.lightSoundInteractUnits) ||...
+                (ismember(neuronNumber,responsiveUnitsGLM.soundResponsiveUnits) &&...
+                ismember(neuronNumber,responsiveUnitsGLM.lightResponsiveUnits))) &&...
+                (ismember(neuronNumber,responsiveUnits.directionSelectiveUnits) ||...
+                ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits)) &&...
+                ismember(neuronNumber,[responsiveUnits.singleUnits responsiveUnits.multiUnits])
+               
             
             
             for c = 1:length(contrasts)
@@ -76,16 +96,16 @@ for dp = 1:length(dataPaths)
                             if orient==testDir
                                 trialsIncluded  = setdiff(trialsIncluded,trial);
                                 
-                                probeTrialV = unitData(u).trialResponse(vInd,trial);
-                                probeTrialAV = unitData(u).trialResponse(avInd,trial);
+                                probeTrialV = unitData(u).trialResponse(vInd,trial)/quantScalar;
+                                probeTrialAV = unitData(u).trialResponse(avInd,trial)/quantScalar;
                                 probeData = [probeTrialV; probeTrialAV];
                             end
                             
-                            vData = unitData(u).trialResponse(vInd,trialsIncluded);
-                            avData = unitData(u).trialResponse(avInd,trialsIncluded);
+                            vData = unitData(u).trialResponse(vInd,trialsIncluded)/quantScalar;
+                            avData = unitData(u).trialResponse(avInd,trialsIncluded)/quantScalar;
                             
-                            neuronStats(orient,1) = fitdist(vData','Normal');
-                            neuronStats(orient,2) = fitdist(avData','Normal');
+                            neuronStats(orient,1) = fitdist(vData','Poisson');
+                            neuronStats(orient,2) = fitdist(avData','Poisson');
                         end
                         
                         vEstimate = maximumLikelihoodFunctionSingle(neuronStats(:,1),probeData(1));
@@ -113,8 +133,23 @@ for dp = 1:length(dataPaths)
                 [~, prefOrientV] = max(vResp);
                 [~, prefOrientAV] = max(avResp);
                 
+                %for same pref orientation across contrasts...
+%                 vIndBase = (length(contrasts)-1)*length(orientations) + 1;
+%                 avIndBase = (length(contrasts)-1)*length(orientations) + 1 + length(orientations)*length(contrasts);
+%                 vResp = unitData(u).meanResponse(vIndBase:vIndBase+length(orientations)-1,4);
+%                 avResp = unitData(u).meanResponse(avIndBase:avIndBase+length(orientations)-1,4);
+%                 [~, prefOrientV] = max(vResp);
+%                 [~, prefOrientAV] = max(avResp);
+                
+                
+                
                 orthIndV = [mod(prefOrientV+3-1,length(orientations)) mod(prefOrientV-3-1,length(orientations))]+1;
+                [~,  minOrthV] = min([unitData(u).meanResponse(vIndBase+orthIndV(1)-1,4) unitData(u).meanResponse(vIndBase+orthIndV(2)-1,4)]);
+                orthIndV = orthIndV(minOrthV);
                 orthIndAV = [mod(prefOrientAV+3-1,length(orientations)) mod(prefOrientAV-3-1,length(orientations))]+1;
+                [~,  minOrthAV] = min([unitData(u).meanResponse(avIndBase+orthIndAV(1)-1,4) unitData(u).meanResponse(avIndBase+orthIndAV(2)-1,4)]);
+                orthIndAV = orthIndAV(minOrthAV);
+                
                 
                 orientClassification = zeros(2,2);
                 for trial = 1:repeats
@@ -124,19 +159,23 @@ for dp = 1:length(dataPaths)
                     vIndBase = (c-1)*length(orientations);
                     avIndBase = (c-1)*length(orientations) + length(orientations)*length(contrasts);
                     
-                    probeTrialV = unitData(u).trialResponse(vIndBase + prefOrientV,trial);
-                    probeTrialAV = unitData(u).trialResponse(avIndBase +prefOrientAV,trial);
+                    probeTrialV = unitData(u).trialResponse(vIndBase + prefOrientV,trial)/quantScalar;
+                    probeTrialAV = unitData(u).trialResponse(avIndBase +prefOrientAV,trial)/quantScalar;
                     probeData = [probeTrialV; probeTrialAV];
                     
-                    prefDataV = unitData(u).trialResponse(vIndBase+prefOrientV,setdiff(1:repeats,trial));
-                    prefDataAV = unitData(u).trialResponse(avIndBase+prefOrientAV,setdiff(1:repeats,trial));
-                    neuronStats(1,1) = fitdist(prefDataV','Normal');
-                    neuronStats(1,2) = fitdist(prefDataAV','Normal');
+                    prefDataV = unitData(u).trialResponse(vIndBase+prefOrientV,setdiff(1:repeats,trial))/quantScalar;
+                    prefDataAV = unitData(u).trialResponse(avIndBase+prefOrientAV,setdiff(1:repeats,trial))/quantScalar;
+                    neuronStats(1,1) = fitdist(prefDataV','Poisson');
+                    neuronStats(1,2) = fitdist(prefDataAV','Poisson');
                     
-                    orthDataV = reshape(unitData(u).trialResponse(vIndBase+orthIndV,:),[1 2*repeats]);
-                    orthDataAV = reshape(unitData(u).trialResponse(avIndBase+orthIndAV,:),[1 2*repeats]);
-                    neuronStats(2,1) = fitdist(orthDataV','Normal');
-                    neuronStats(2,2) = fitdist(orthDataAV','Normal');
+%                     orthDataV = reshape(unitData(u).trialResponse(vIndBase+orthIndV,:)/quantScalar,[1 2*repeats]);
+%                     orthDataAV = reshape(unitData(u).trialResponse(avIndBase+orthIndAV,:)/quantScalar,[1 2*repeats]);
+%                     neuronStats(2,1) = fitdist(orthDataV','Poisson');
+%                     neuronStats(2,2) = fitdist(orthDataAV','Poisson');
+                    orthDataV = reshape(unitData(u).trialResponse(vIndBase+orthIndV,:)/quantScalar,[1 repeats]);
+                    orthDataAV = reshape(unitData(u).trialResponse(avIndBase+orthIndAV,:)/quantScalar,[1 repeats]);
+                    neuronStats(2,1) = fitdist(orthDataV','Poisson');
+                    neuronStats(2,2) = fitdist(orthDataAV','Poisson');
                     
                     vEstimate = maximumLikelihoodFunctionSingle(neuronStats(:,1),probeData(1));
                     orientClassification(1,vEstimate) = orientClassification(1,vEstimate)+1;
@@ -144,7 +183,7 @@ for dp = 1:length(dataPaths)
                     avEstimate = maximumLikelihoodFunctionSingle(neuronStats(:,2),probeData(2));
                     orientClassification(2,avEstimate) = orientClassification(2,avEstimate)+1;
                 end
-                if ismember(neuronNumber, responsiveUnits2.orientationSelectiveUnits)
+                if ismember(neuronNumber, responsiveUnits.orientationSelectiveUnits)
                     orientationMap{1,c} = [orientationMap{1,c}; orientClassification(:,1)'./repeats dp u neuronNumber];
                 end
                 
@@ -157,6 +196,14 @@ for dp = 1:length(dataPaths)
                 [~, prefOrientV] = max(vResp);
                 [~, prefOrientAV] = max(avResp);
                 
+                %for same pref orientation across contrasts...
+%                 vIndBase = (length(contrasts)-1)*length(orientations) + 1;
+%                 avIndBase = (length(contrasts)-1)*length(orientations) + 1 + length(orientations)*length(contrasts);
+%                 vResp = unitData(u).meanResponse(vIndBase:vIndBase+length(orientations)-1,4);
+%                 avResp = unitData(u).meanResponse(avIndBase:avIndBase+length(orientations)-1,4);
+%                 [~, prefOrientV] = max(vResp);
+%                 [~, prefOrientAV] = max(avResp);
+                
                 oppIndV = mod(prefOrientV+6-1,length(orientations))+1;
                 oppIndAV = mod(prefOrientAV+6-1,length(orientations))+1;
                 
@@ -168,19 +215,19 @@ for dp = 1:length(dataPaths)
                     vIndBase = (c-1)*length(orientations);
                     avIndBase = (c-1)*length(orientations) + length(orientations)*length(contrasts);
                     
-                    probeTrialV = unitData(u).trialResponse(vIndBase + prefOrientV,trial);
-                    probeTrialAV = unitData(u).trialResponse(avIndBase +prefOrientAV,trial);
+                    probeTrialV = unitData(u).trialResponse(vIndBase + prefOrientV,trial)/quantScalar;
+                    probeTrialAV = unitData(u).trialResponse(avIndBase +prefOrientAV,trial)/quantScalar;
                     probeData = [probeTrialV; probeTrialAV];
                     
-                    prefDataV = unitData(u).trialResponse(vIndBase+prefOrientV,setdiff(1:repeats,trial));
-                    prefDataAV = unitData(u).trialResponse(avIndBase+prefOrientAV,setdiff(1:repeats,trial));
-                    neuronStats(1,1) = fitdist(prefDataV','Normal');
-                    neuronStats(1,2) = fitdist(prefDataAV','Normal');
+                    prefDataV = unitData(u).trialResponse(vIndBase+prefOrientV,setdiff(1:repeats,trial))/quantScalar;
+                    prefDataAV = unitData(u).trialResponse(avIndBase+prefOrientAV,setdiff(1:repeats,trial))/quantScalar;
+                    neuronStats(1,1) = fitdist(prefDataV','Poisson');
+                    neuronStats(1,2) = fitdist(prefDataAV','Poisson');
                     
-                    oppDataV = unitData(u).trialResponse(vIndBase+oppIndV,:);
-                    oppDataAV = unitData(u).trialResponse(avIndBase+oppIndAV,:);
-                    neuronStats(2,1) = fitdist(oppDataV','Normal');
-                    neuronStats(2,2) = fitdist(oppDataAV','Normal');
+                    oppDataV = unitData(u).trialResponse(vIndBase+oppIndV,:)/quantScalar;
+                    oppDataAV = unitData(u).trialResponse(avIndBase+oppIndAV,:)/quantScalar;
+                    neuronStats(2,1) = fitdist(oppDataV','Poisson');
+                    neuronStats(2,2) = fitdist(oppDataAV','Poisson');
                     
                     vEstimate = maximumLikelihoodFunctionSingle(neuronStats(:,1),probeData(1));
                     directClassification(1,vEstimate) = directClassification(1,vEstimate)+1;
@@ -188,7 +235,7 @@ for dp = 1:length(dataPaths)
                     avEstimate = maximumLikelihoodFunctionSingle(neuronStats(:,2),probeData(2));
                     directClassification(2,avEstimate) = directClassification(2,avEstimate)+1;
                 end
-                if ismember(neuronNumber, responsiveUnits2.directionSelectiveUnits)
+                if ismember(neuronNumber, responsiveUnits.directionSelectiveUnits)
                     directionMap{1,c} = [directionMap{1,c}; directClassification(:,1)'./repeats dp u neuronNumber];
                 end
                 
@@ -213,7 +260,7 @@ for dp = 1:length(dataPaths)
     end
 end
 
-save(fullfile(saveDir,'MLE_IndividualNeuron_Data.mat'),'choiceMap','accuracy','orientationMap','directionMap');
+% save(fullfile(saveDir,'MLE_IndividualNeuron_Data.mat'),'choiceMap','accuracy','orientationMap','directionMap');
 
 %% Overall accuracy
 % meanMap = squeeze(mean(choiceMap{1,5},3));
@@ -264,7 +311,7 @@ hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
 plot(contrasts,diffAcc,'Color',[0 0 0]);
 
-[p,~,~] = anova2(statsMat,118,'off')
+% [p,~,~] = anova2(statsMat,118,'off')
 
 figure;
 scatter(accuracy{3}(:,1),accuracy{3}(:,2)-accuracy{3}(:,1));
@@ -273,6 +320,8 @@ ylabel('\Delta MLE accuracy (AV - V)');
 title('Overall accuracy');
 
 %% Orientation accuracy
+statsMat = [];
+Y=[];Sub=[];F1=[];F2=[];FACTNAMES = {'Contrast','Sound'};
 for c = 1:5
     clear tempV tempAV tempDiff
     
@@ -285,6 +334,11 @@ for c = 1:5
     avAccStd(c) = std(ooAV)/sqrt(length(ooAV));
     diffAcc(c) = mean(ooDiff);
     diffAccStd(c) = std(ooDiff)/sqrt(length(ooDiff));
+    
+    Y = [Y ooV' ooAV'];
+    Sub = [Sub 1:length(orientationMap{1}) 1:length(orientationMap{1})];
+    F1 = [F1 ones(1,2*length(orientationMap{1}))*c];
+    F2 = [F2 zeros(1,length(orientationMap{1})) ones(1,length(orientationMap{1}))];
     
 end
 figure;hold on;
@@ -321,7 +375,10 @@ xlabel('MLE accuracy (visual)');
 ylabel('\Delta MLE accuracy (AV - V)');
 title('Orientation');
 
+stats = rm_anova2(Y,Sub,F1,F2,FACTNAMES)
+
 %% Direction accuracy
+Y=[];Sub=[];F1=[];F2=[];FACTNAMES = {'Contrast','Sound'};
 for c = 1:5
     clear tempV tempAV tempDiff
     
@@ -334,6 +391,11 @@ for c = 1:5
     avAccStd(c) = std(ddAV)/sqrt(length(ddAV));
     diffAcc(c) = mean(ddDiff);
     diffAccStd(c) = std(ddDiff)/sqrt(length(ddDiff));
+    
+    Y = [Y ddV' ddAV'];
+    Sub = [Sub 1:length(directionMap{1}) 1:length(directionMap{1})];
+    F1 = [F1 ones(1,2*length(directionMap{1}))*c];
+    F2 = [F2 zeros(1,length(directionMap{1})) ones(1,length(directionMap{1}))];
     
 end
 figure;hold on;
@@ -363,6 +425,8 @@ hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
 plot(contrasts,diffAcc,'Color',[0 0 0]);
 title('Direction');
+
+stats = rm_anova2(Y,Sub,F1,F2,FACTNAMES)
 
 
 

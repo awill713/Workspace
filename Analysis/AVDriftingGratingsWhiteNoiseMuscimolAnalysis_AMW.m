@@ -2,9 +2,9 @@
 clear;
 
 experiment = 'EP009';
-mouseID = 'AW149';
+mouseID = 'AW153';
 session = 'Session1';
-date = '20200923';
+date = '20201104';
 preStimPath = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVsingleContrastDriftingGratingsWhiteNoise_stimInfo_pre']);
 postStimPath = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVsingleContrastDriftingGratingsWhiteNoise_stimInfo_post']);
 
@@ -121,6 +121,7 @@ for n = 1:totalUnits
     end
     
     sparsity = [];
+    avIntegrationIndex = zeros(1,length(contrasts));
     for c = 1:length(contrasts)
         evIdx = 1 + (c-1)*length(orientations);
         idxOffset = length(orientations)*length(contrasts);
@@ -132,7 +133,12 @@ for n = 1:totalUnits
         avSparse = 1 - (sum(av./length(orientations))^2 / sum(av.^2 / length(orientations)));
         
         sparsity = [sparsity [vSparse; avSparse]];
+        
+        vv = mean(v);
+        aav = mean(av);
+        avIntegrationIndex(c) = (aav-vv) / (aav + vv);
     end
+    
     
     unitData(n).PREraster = spikeRaster;
     unitData(n).PREmeanResponse = meanResponse;
@@ -141,6 +147,7 @@ for n = 1:totalUnits
     unitData(n).PREfrTrainTrials = frTrainTrials; %JUST NUMBER OF SPIKES IN BIN, NOT FIRING RATE
     unitData(n).PREtrialResponse = trialResponse;
     unitData(n).PREsparsity = sparsity;
+    unitData(n).PREavIntegrationIndex = avIntegrationIndex(length(contrasts));
     unitData(n).type = nData.CellInfo(6);
     unitData(n).neuronNumber = nData.CellInfo(4);
     neuronNumber = nData.CellInfo(4);
@@ -180,11 +187,47 @@ for n = 1:totalUnits
         [~, pDir] = ttest2(trialResponse(baseInd+maxInd,:),trialResponse(baseInd+oppInd,:));
         if pDir<0.05
             directionSelectiveUnits = [directionSelectiveUnits neuronNumber];
+            
+            c = length(contrasts);
+            evIdx = 1 + (c-1)*length(orientations);
+            idxOffset = length(orientations)*length(contrasts);
+            v = meanResponse(evIdx:(evIdx+length(orientations)-1),4);
+            av = meanResponse(evIdx+idxOffset:(evIdx+length(orientations)-1+idxOffset),4);
+            
+            [prefV, prefVInd] = max(v);
+            [prefAV, prefAVInd] = max(av);
+            oppIndV = mod(prefVInd+6-1,length(orientations)) +1;
+            oppIndAV = mod(prefAVInd+6-1,length(orientations)) +1;
+            
+            oppV = v(oppIndV);
+            oppAV = av(oppIndAV);
+            
+            dsiV = 1 - oppV / prefV;    
+            dsiAV = 1 - oppAV / prefAV;
+            unitData(n).PREdsi = [dsiV dsiAV];
         end
         
         [~, pOrient] = ttest2(trialResponse(baseInd+maxInd,:),[trialResponse(baseInd+orthInd(1),:) trialResponse(baseInd+orthInd(2),:)]);
         if pOrient<0.05
             orientationSelectiveUnits = [orientationSelectiveUnits neuronNumber];
+            
+            c = length(contrasts);
+            evIdx = 1 + (c-1)*length(orientations);
+            idxOffset = length(orientations)*length(contrasts);
+            v = meanResponse(evIdx:(evIdx+length(orientations)-1),4);
+            av = meanResponse(evIdx+idxOffset:(evIdx+length(orientations)-1+idxOffset),4);
+            
+            [prefV, prefVInd] = max(v);
+            [prefAV, prefAVInd] = max(av);
+            orthIndV = [mod(prefVInd+3-1,length(orientations)) mod(prefVInd-3-1,length(orientations))]+1;
+            orthIndAV = [mod(prefAVInd+3-1,length(orientations)) mod(prefAVInd-3-1,length(orientations))]+1;
+            
+            orthV = mean(v(orthIndV));
+            orthAV = mean(av(orthIndAV));
+            
+            osiV = 1 - orthV / prefV;    
+            osiAV = 1 - orthAV / prefAV;
+            unitData(n).PREosi = [osiV osiAV];
         end
     else
         pDir = 1;
@@ -254,17 +297,22 @@ for n = 1:totalUnits
     end
     
     sparsityPost = [];
+    avIntegrationIndex = zeros(1,length(contrasts));
     for c = 1:length(contrasts)
         evIdx = 1 + (c-1)*length(orientations);
         idxOffset = length(orientations)*length(contrasts);
         
-        v = meanResponse(evIdx:(evIdx+length(orientations)-1),4);
-        av = meanResponse(evIdx+idxOffset:(evIdx+length(orientations)-1+idxOffset),4);
+        v = meanResponsePost(evIdx:(evIdx+length(orientations)-1),4);
+        av = meanResponsePost(evIdx+idxOffset:(evIdx+length(orientations)-1+idxOffset),4);
         
         vSparse = 1 - (sum(v./length(orientations))^2 / sum(v.^2 / length(orientations)));
         avSparse = 1 - (sum(av./length(orientations))^2 / sum(av.^2 / length(orientations)));
         
         sparsityPost = [sparsityPost [vSparse; avSparse]];
+        
+        vv = mean(v);
+        aav = mean(av);
+        avIntegrationIndex(c) = (aav-vv) / (aav + vv);
     end
     
     unitData(n).POSTraster = spikeRasterPost;
@@ -274,6 +322,46 @@ for n = 1:totalUnits
     unitData(n).POSTfrTrainTrials = frTrainTrialsPost; %JUST NUMBER OF SPIKES IN BIN, NOT FIRING RATE
     unitData(n).POSTtrialResponse = trialResponsePost;
     unitData(n).POSTsparsity = sparsityPost;
+    unitData(n).POSTavIntegrationIndex = avIntegrationIndex(length(contrasts));
+    
+    if pOrient <0.05
+        c = length(contrasts);
+            evIdx = 1 + (c-1)*length(orientations);
+            idxOffset = length(orientations)*length(contrasts);
+            v = meanResponsePost(evIdx:(evIdx+length(orientations)-1),4);
+            av = meanResponsePost(evIdx+idxOffset:(evIdx+length(orientations)-1+idxOffset),4);
+            
+            [prefV, prefVInd] = max(v);
+            [prefAV, prefAVInd] = max(av);
+            orthIndV = [mod(prefVInd+3-1,length(orientations)) mod(prefVInd-3-1,length(orientations))]+1;
+            orthIndAV = [mod(prefAVInd+3-1,length(orientations)) mod(prefAVInd-3-1,length(orientations))]+1;
+            
+            orthV = mean(v(orthIndV));
+            orthAV = mean(av(orthIndAV));
+            
+            osiV = 1 - orthV / prefV;    
+            osiAV = 1 - orthAV / prefAV;
+            unitData(n).POSTosi = [osiV osiAV];
+    end
+    if pDir<0.05
+        c = length(contrasts);
+            evIdx = 1 + (c-1)*length(orientations);
+            idxOffset = length(orientations)*length(contrasts);
+            v = meanResponsePost(evIdx:(evIdx+length(orientations)-1),4);
+            av = meanResponsePost(evIdx+idxOffset:(evIdx+length(orientations)-1+idxOffset),4);
+            
+            [prefV, prefVInd] = max(v);
+            [prefAV, prefAVInd] = max(av);
+            oppIndV = mod(prefVInd+6-1,length(orientations)) +1;
+            oppIndAV = mod(prefAVInd+6-1,length(orientations)) +1;
+            
+            oppV = v(oppIndV);
+            oppAV = av(oppIndAV);
+            
+            dsiV = 1 - oppV / prefV;    
+            dsiAV = 1 - oppAV / prefAV;
+            unitData(n).POSTdsi = [dsiV dsiAV];
+    end
     
     %% plot
         
@@ -427,6 +515,21 @@ line([0 4],[0 4]);
 xlabel('Audiovisual response ratio, pre-muscimol');
 ylabel('Audiovisual response ratio, post-muscimol');
 saveas(f6,fullfile(newDir,'Pre and post AV response ratio'));
+
+preAVIndex = [];
+postAVIndex = [];
+for nn = 1:totalUnits
+    neuronNumber = unitData(nn).neuronNumber;
+    if ismember(neuronNumber,responsiveUnits.soundAndLight)
+    
+        preAVIndex = [preAVIndex unitData(nn).PREavIntegrationIndex];
+        postAVIndex = [postAVIndex unitData(nn).POSTavIntegrationIndex];
+    end
+end
+f7 = figure;hold on;
+histogram(preAVIndex);
+histogram(postAVIndex);
+saveas(f7,fullfile(newDir,'Pre and post AV response indices'));
 
 
 
