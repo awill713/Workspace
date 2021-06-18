@@ -20,9 +20,9 @@ dataPaths{12} = fullfile('EP010','AW158','20201212-2');
 for dp = 1:length(dataPaths)
     dp
     %Load data
-    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_final','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
+    dataFile = fullfile('F:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_final','AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat');
     load(dataFile);
-    stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
+    stimPath = dir(fullfile('F:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
     load(fullfile(stimPath.folder,stimPath.name));
     
     orientations = stimInfo.orientations;
@@ -33,7 +33,7 @@ for dp = 1:length(dataPaths)
         rawFiringRate = cell(1,2);
         deltaFiringRate = [];
         normFiringRate = cell(1,2);
-        psth = cell(length(contrasts),2);
+        psth = cell(length(contrasts),3);
         linearRatio = [];
     end
     
@@ -59,6 +59,10 @@ for dp = 1:length(dataPaths)
                 psth{c,2} = [psth{c,2}; avPSTH];
             end
             
+            sPSTH = mean(unitData(u).frTrain(61:72,:));
+            psth{1,3} = [psth{1,3}; sPSTH];
+            
+            
             rawFiringRate{1} = [rawFiringRate{1}; tempRates(1,:)];
             rawFiringRate{2} = [rawFiringRate{2}; tempRates(2,:)];
             deltaFiringRate = [deltaFiringRate; tempRates(2,:)-tempRates(1,:)];
@@ -74,6 +78,8 @@ vv = mean(rawFiringRate{1});
 vvSTD = std(rawFiringRate{1},[],1)./sqrt(size(rawFiringRate{1},1));
 av = mean(rawFiringRate{2});
 avSTD = std(rawFiringRate{2},[],1)./sqrt(size(rawFiringRate{2},1));
+together = mean(rawFiringRate{1}+rawFiringRate{2}(:,1)-rawFiringRate{1}(:,1));
+togetherSTD = std(rawFiringRate{1},[],1)./sqrt(size(rawFiringRate{1},1));
 figure; hold on;
 hA = area(contrasts,[vv-vvSTD; 2*vvSTD]');
 hA(1).FaceAlpha = 0;
@@ -87,8 +93,15 @@ hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [0 0 1];
 hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
+hA = area(contrasts,[together-togetherSTD; 2*togetherSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 1];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
 plot(contrasts,vv,'Color',[0 0 0]);
 plot(contrasts,av,'Color',[0 0 1]);
+plot(contrasts,together,'Color',[0 1 1]);
 xticks(contrasts);
 xlabel('Contrast');
 ylabel('Mean firing rate (Hz)');
@@ -111,6 +124,8 @@ vv = mean(psth{5,1});
 vvSTD = std(psth{5,1},[],1)./sqrt(size(psth{5,1},1));
 av = mean(psth{5,2});
 avSTD = std(psth{5,2},[],1)./sqrt(size(psth{5,2},1));
+ss = mean(psth{1,3});
+ssSTD = std(psth{1,3},[],1)./sqrt(size(psth{1,3},1));
 figure; hold on;
 hA = area(binEdges,[vv-vvSTD; 2*vvSTD]');
 hA(1).FaceAlpha = 0;
@@ -126,6 +141,15 @@ hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
 plot(binEdges,vv,'Color',[0 0 0]);
 plot(binEdges,av,'Color',[0 0 1]);
+hA = area(binEdges,[ss-ssSTD; 2*ssSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 1];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(binEdges,vv,'Color',[0 0 0]);
+plot(binEdges,av,'Color',[0 0 1]);
+plot(binEdges,ss,'Color',[0 0 1]);
 xlabel('Time (ms)');
 ylabel('Mean firing rate (Hz)');
 
@@ -137,6 +161,30 @@ scatter(expected,actual);
 line([-20 100],[-20 100]);
 xlabel('\DeltaFR_{light} + \DeltaFR_{sound} (Hz)');
 ylabel('\DeltaFR_{light+sound} (Hz)');
+
+linearIndex = [];
+for c = 1:5
+    tempExpected = rawFiringRate{2}(:,1) + rawFiringRate{1}(:,c) - 2*rawFiringRate{1}(:,1);
+    tempActual = rawFiringRate{2}(:,c) - rawFiringRate{1}(:,1);
+    tempIndex = (tempActual-tempExpected)./tempExpected;
+    linearIndex = [linearIndex tempIndex];
+end
+linearIndex(:,1) = 0;
+linearIndex([11 25 38 237 327 415 477 494 512 520],:) = [];
+li = mean(linearIndex);
+liSTD = std(linearIndex)./sqrt(size(linearIndex,1));
+figure;hold on;
+hA = area(contrasts,[li-liSTD; 2*liSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(contrasts,li,'Color',[0 0 0]);
+xticks(contrasts);
+xlabel('Contrast');
+ylabel('Linearity index');
+
 
 linearRatio([11 25 38 237 327 415 477 494 512 520],:) = [];
 lr = mean(linearRatio);
@@ -177,9 +225,9 @@ dataPaths{12} = fullfile('EP010','AW158','20201212-2');
 for dp = 1:length(dataPaths)
     dp
     %Load data
-    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_final','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
+    dataFile = fullfile('F:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_final','AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat');
     load(dataFile);
-    stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
+    stimPath = dir(fullfile('F:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
     load(fullfile(stimPath.folder,stimPath.name));
     
     orientations = stimInfo.orientations;
@@ -418,6 +466,282 @@ xticks(contrasts);
 xlabel('Contrast');
 ylabel('\Delta FWHM (ms)');
 
+%% BETTER TIMING AND CoV
+
+clear all;
+% close all;
+
+dataPaths{1} = fullfile('EP004','AW117','20200221-1');
+dataPaths{2} = fullfile('EP004','AW117','20200221-2');
+dataPaths{3} = fullfile('EP004','AW118','20200221-1');
+dataPaths{4} = fullfile('EP004','AW118','20200221-2');
+dataPaths{5} = fullfile('EP004','AW121','20200226-1');
+dataPaths{6} = fullfile('EP004','AW121','20200226-2');
+dataPaths{7} = fullfile('EP004','AW124','20200303-1');
+dataPaths{8} = fullfile('EP004','AW124','20200303-2');
+dataPaths{9} = fullfile('EP010','AW157','20201212-1');
+dataPaths{10} = fullfile('EP010','AW157','20201212-2');
+dataPaths{11} = fullfile('EP010','AW158','20201212-1');
+dataPaths{12} = fullfile('EP010','AW158','20201212-2');
+
+for dp = 1:length(dataPaths)
+    dp
+    %Load data
+    dataFile = fullfile('F:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_final','AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat');
+    load(dataFile);
+    stimPath = dir(fullfile('F:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
+    load(fullfile(stimPath.folder,stimPath.name));
+    
+    orientations = stimInfo.orientations;
+    contrasts = stimInfo.contrasts;
+    repeats = stimInfo.repeats;
+    
+    binEdges = analysisParams.binEdges;
+    baselineLastBin = find(binEdges==analysisParams.baselineWindow(2));
+    quantFirstBin = find(binEdges==analysisParams.quantWindow(1));
+    quantLastBin = find(binEdges==analysisParams.quantWindow(2));
+    
+    %     quantLastBin = find(binEdges==200);
+    
+    if ~exist('latency','var')
+        latency = cell(1,2);
+        deltaLatency = [];
+        peakLatency = cell(1,2);
+        responseSlope = cell(1,2);
+        deltaSlope = [];
+        fwhm = cell(1,2);
+        info = [];
+    end
+    
+    for u  = 1:size(unitData,2)
+        neuronNumber = unitData(u).neuronNumber;
+        
+        if ismember(neuronNumber,responsiveUnitsGLM.lightSoundInteractUnits) ||...
+                (ismember(neuronNumber,responsiveUnitsGLM.lightResponsiveUnits) &&...
+                ismember(neuronNumber,responsiveUnitsGLM.soundResponsiveUnits))
+            
+            tempLatency = zeros(2,length(contrasts)-1);
+            tempPeak = zeros(2,length(contrasts)-1);
+            tempSlope = zeros(2,length(contrasts)-1);
+            tempFWHM = zeros(2,length(contrasts)-1);
+            include = true;
+            for c = 2:length(contrasts)
+                vIndices = (c-1)*length(orientations)+1 : c*length(orientations);
+                avIndices = vIndices + length(orientations)*length(contrasts);
+                
+                vTemp = smooth(mean(unitData(u).frTrain(vIndices,:)),40);
+                avTemp = smooth(mean(unitData(u).frTrain(avIndices,:)),40);
+%                 vTemp = mean(unitData(u).frTrain(vIndices,:));
+%                 avTemp = mean(unitData(u).frTrain(avIndices,:));
+                
+                vBaseline = mean(unitData(u).meanResponse(vIndices,2));
+%                 vBaseSTD = mean(unitData(u).meanResponse(vIndices,3))*sqrt(repeats);
+                vBaseSTD = std(unitData(u).meanResponse(vIndices,2));
+                avBaseline = mean(unitData(u).meanResponse(avIndices,2));
+%                 avBaseSTD = mean(unitData(u).meanResponse(avIndices,3))*sqrt(repeats);
+                avBaseSTD = std(unitData(u).meanResponse(avIndices,2));
+                
+                vRespWindow = vTemp(quantFirstBin:quantLastBin);
+                avRespWindow = avTemp(quantFirstBin:quantLastBin);
+                
+                vSign = sign(mean(vTemp(quantFirstBin:quantLastBin))-mean(vTemp(1:quantFirstBin)));
+                avSign = sign(mean(avTemp(quantFirstBin:quantLastBin))-mean(avTemp(1:quantFirstBin)));
+                
+                vBaseline = vBaseline*vSign; avBaseline = avBaseline*avSign;vTemp = vTemp*vSign;
+                vRespWindow = vRespWindow*vSign; avRespWindow = avRespWindow*avSign;avTemp = avTemp*avSign;
+                
+                [vMaxFR vMaxBin] = max(vRespWindow);
+                [avMaxFR avMaxBin] = max(avRespWindow);
+                vSlope = (vMaxFR-vBaseline)/vMaxBin;
+                avSlope = (avMaxFR-avBaseline)/avMaxBin;
+                tempSlope(:,c-1) = [vSlope; avSlope];
+                tempPeak(:,c-1) = [vMaxBin; avMaxBin];
+                
+                vLat = find(vRespWindow(1:vMaxBin) < (vBaseline+1*vBaseSTD),1,'last');
+                avLat = find(avRespWindow(1:avMaxBin) < (avBaseline+1*avBaseSTD),1,'last');
+                
+                vLat = find(vRespWindow > (vBaseline+1*vBaseSTD),1,'first');
+                avLat = find(avRespWindow > (avBaseline+1*avBaseSTD),1,'first');
+                if size([vLat;avLat],1) ==2 && size([vLat;avLat],2) == 1
+                    tempLatency(:,c-1) = [vLat; avLat];
+                else
+                    tempLatency(:,c-1) = [0/0; 0/0];
+                end
+                    
+                
+                vThresh = vBaseline + 0.5*(vMaxFR-vBaseline);
+                avThresh = avBaseline + 0.5*(avMaxFR-avBaseline);
+                vFirst = find(fliplr(vRespWindow(1:vMaxBin)) < vThresh,1,'first');
+                vLast = find(vTemp((vMaxBin+quantFirstBin):end) < vThresh,1,'first');
+                vDur = vFirst + vLast;
+                avFirst = find(fliplr(avRespWindow(1:avMaxBin)) < avThresh,1,'first');
+                avLast = find(avTemp((quantFirstBin+avMaxBin-1):end) < avThresh,1,'first');
+                avDur = avFirst + avLast;
+                
+                if length(vDur)==1 && length(avDur)==1 && vSign==1 && avSign==1
+                    tempFWHM(:,c-1) = [vDur; avDur];
+                else
+                    include = false;
+                end
+            end
+            
+            responseSlope{1} = [responseSlope{1}; tempSlope(1,:)];
+            responseSlope{2} = [responseSlope{2}; tempSlope(2,:)];
+            deltaSlope = [deltaSlope; tempSlope(2,:)-tempSlope(1,:)];
+            
+            peakLatency{1} = [peakLatency{1}; tempPeak(1,:)];
+            peakLatency{2} = [peakLatency{2}; tempPeak(2,:)];
+            
+            if include
+                fwhm{1} = [fwhm{1}; tempFWHM(1,:)];
+                fwhm{2} = [fwhm{2}; tempFWHM(2,:)];
+                
+                info = [info; dp u neuronNumber];
+            end
+            
+            latency{1} = [latency{1}; tempLatency(1,:)];
+            latency{2} = [latency{2}; tempLatency(2,:)];
+            deltaLatency = [deltaLatency; tempLatency(2,:)-tempLatency(1,:)];
+            
+        end
+    end
+end
+
+vv = mean(responseSlope{1});
+vvSTD = std(responseSlope{1},[],1)./sqrt(size(responseSlope{1},1));
+av = mean(responseSlope{2});
+avSTD = std(responseSlope{2},[],1)./sqrt(size(responseSlope{2},1));
+figure; hold on;
+hA = area(contrasts(2:end),[vv-vvSTD; 2*vvSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+hA = area(contrasts(2:end),[av-avSTD; 2*avSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 1];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(contrasts(2:end),vv,'Color',[0 0 0]);
+plot(contrasts(2:end),av,'Color',[0 0 1]);
+% xticks(contrasts);
+xlabel('Contrast');
+ylabel('Response slope (Hz/ms)');
+
+
+dv = mean(deltaSlope);
+dvSTD = std(deltaSlope,[],1)./sqrt(size(deltaSlope,1));
+figure;hold on;
+hA = area(contrasts(2:end),[dv-dvSTD; 2*dvSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(contrasts(2:end),dv,'Color',[0 0 0]);
+xlabel('Contrast');
+ylabel('\Delta Response slope (Hz/ms)');
+
+vv = nanmean(latency{1});
+vvSTD = nanstd(latency{1},[],1)./sqrt(size(latency{1},1));
+av = nanmean(latency{2});
+avSTD = nanstd(latency{2},[],1)./sqrt(size(latency{2},1));
+figure; hold on;
+hA = area(contrasts(2:end),[vv-vvSTD; 2*vvSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+hA = area(contrasts(2:end),[av-avSTD; 2*avSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 1];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(contrasts(2:end),vv,'Color',[0 0 0]);
+plot(contrasts(2:end),av,'Color',[0 0 1]);
+xticks(contrasts);
+xlabel('Contrast');
+ylabel('Response latency (ms)');
+
+dv = nanmean(deltaLatency);
+dvSTD = nanstd(deltaLatency,[],1)./sqrt(size(deltaLatency,1));
+figure;hold on;
+hA = area(contrasts(2:end),[dv-dvSTD; 2*dvSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(contrasts(2:end),dv,'Color',[0 0 0]);
+xticks(contrasts);
+xlabel('Contrast');
+ylabel('\Delta response latency (ms)');
+
+vv = mean(peakLatency{1});
+vvSTD = std(peakLatency{1},[],1)./sqrt(size(peakLatency{1},1));
+av = mean(peakLatency{2});
+avSTD = std(peakLatency{2},[],1)./sqrt(size(peakLatency{2},1));
+figure; hold on;
+hA = area(contrasts(2:end),[vv-vvSTD; 2*vvSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+hA = area(contrasts(2:end),[av-avSTD; 2*avSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 1];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(contrasts(2:end),vv,'Color',[0 0 0]);
+plot(contrasts(2:end),av,'Color',[0 0 1]);
+xticks(contrasts);
+xlabel('Contrast');
+ylabel('Latency to peak response(ms)');
+
+
+vv = mean(fwhm{1});
+vvSTD = std(fwhm{1},[],1)./sqrt(size(fwhm{1},1));
+av = mean(fwhm{2});
+avSTD = std(fwhm{2},[],1)./sqrt(size(fwhm{2},1));
+figure; hold on;
+hA = area(contrasts(2:end),[vv-vvSTD; 2*vvSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+hA = area(contrasts(2:end),[av-avSTD; 2*avSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 1];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(contrasts(2:end),vv,'Color',[0 0 0]);
+plot(contrasts(2:end),av,'Color',[0 0 1]);
+xticks(contrasts);
+xlabel('Contrast');
+ylabel('Response FWHM (ms)');
+
+dv = mean(fwhm{2}-fwhm{1});
+dvSTD = std(fwhm{2}-fwhm{1},[],1)./sqrt(size(fwhm{2}-fwhm{1},1));
+figure;hold on;
+hA = area(contrasts(2:end),[dv-dvSTD; 2*dvSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [0 0 0];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(contrasts(2:end),dv,'Color',[0 0 0]);
+xticks(contrasts);
+xlabel('Contrast');
+ylabel('\Delta FWHM (ms)');
+
 
 %% Orientation shifts
 clear all;
@@ -436,13 +760,13 @@ dataPaths{10} = fullfile('EP010','AW157','20201212-2');
 dataPaths{11} = fullfile('EP010','AW158','20201212-1');
 dataPaths{12} = fullfile('EP010','AW158','20201212-2');
 
-orientationShuffles = 1000;
+orientationShuffles = 10;
 for dp = 1:length(dataPaths)
     dp
     %Load data
-    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_final','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
+    dataFile = fullfile('F:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_final','AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat');
     load(dataFile);
-    stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
+    stimPath = dir(fullfile('F:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
     load(fullfile(stimPath.folder,stimPath.name));
     
     orientations = stimInfo.orientations;
@@ -462,8 +786,8 @@ for dp = 1:length(dataPaths)
         if ismember(neuronNumber,responsiveUnitsGLM.lightSoundInteractUnits) ||...
                 (ismember(neuronNumber,responsiveUnitsGLM.lightResponsiveUnits) &&...
                 ismember(neuronNumber,responsiveUnitsGLM.soundResponsiveUnits)) &&...
-                (ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits) ||...
-                ismember(neuronNumber,responsiveUnits.directionSelectiveUnits))
+                (ismember(neuronNumber,responsiveUnits.orientationSelectiveUnitsAND) ||...
+                ismember(neuronNumber,responsiveUnits.directionSelectiveUnitsAND))
             
             tempShifts = zeros(1,length(contrasts));
             for c = 1:length(contrasts)
@@ -491,10 +815,10 @@ for dp = 1:length(dataPaths)
                 orthIndAV = [mod(indAV+3-1,length(orientations)) mod(indAV-3-1,length(orientations))]+1;
                 avOSI = (avResp(indAV) - mean(avResp(orthIndAV))) / (avResp(indAV) + mean(avResp(orthIndAV)));
                 avDSI = (avResp(indAV) - avResp(oppIndAV)) / (avResp(indAV) + avResp(oppIndV));
-                if ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits)
+                if ismember(neuronNumber,responsiveUnits.orientationSelectiveUnitsAND)
                     unitOSI{c} = [unitOSI{c}; vOSI avOSI dp u neuronNumber];
                 end
-                if ismember(neuronNumber,responsiveUnits.directionSelectiveUnits)
+                if ismember(neuronNumber,responsiveUnits.directionSelectiveUnitsAND)
                     unitDSI{c} = [unitDSI{c}; vDSI avDSI dp u neuronNumber];
                 end
                 
@@ -525,6 +849,7 @@ for dp = 1:length(dataPaths)
                         [~, vShuffPeakInd] = max(vShuffMeans);
                         [~, avShuffPeakInd] = max(avShuffMeans);
                         shuffDiff = wrapTo180(orientations(avShuffPeakInd) - orientations(vShuffPeakInd));
+%                         shuffDiff = wrapTo180(orientations(avShuffPeakInd) - orientations(indAV));
                         if shuffDiff == 180
                             shuffDiff = -180;
                         end
@@ -700,9 +1025,9 @@ dataPaths{12} = fullfile('EP010','AW158','20201212-2');
 for dp = 1:length(dataPaths)
     dp
     %Load data
-    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_final','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
+    dataFile = fullfile('F:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_final','AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat');
     load(dataFile);
-    stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
+    stimPath = dir(fullfile('F:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
     load(fullfile(stimPath.folder,stimPath.name));
     
     orientations = stimInfo.orientations;
@@ -711,7 +1036,10 @@ for dp = 1:length(dataPaths)
     
     %     quantLastBin = find(binEdges==200);
     
-    if ~exist('coefVar','var')
+%     if ~exist('coefVar','var')
+%         cvData = cell(1,length(contrasts)); 
+%     end
+    if ~exist('cvData','var')
         cvData = cell(1,length(contrasts)); 
     end
     
@@ -726,19 +1054,24 @@ for dp = 1:length(dataPaths)
                 vIndices = (c-1)*length(orientations)+1 : c*length(orientations);
                 avIndices = vIndices + length(orientations)*length(contrasts);
                 
-                vMeans = mean(unitData(u).trialResponse(vIndices,:),2);
-                vSTDs = std(unitData(u).trialResponse(vIndices,:),[],2);
-%                 vMeans = mean(reshape(unitData(u).trialResponse(vIndices,:),[1 120]));
-%                 vSTDs = std(reshape(unitData(u).trialResponse(vIndices,:),[1 120]));
+%                 vMeans = mean(unitData(u).trialResponse(vIndices,:),2);
+%                 vSTDs = std(unitData(u).trialResponse(vIndices,:),[],2);
+                vMeans = mean(reshape(unitData(u).trialResponse(vIndices,:),[1 120]));
+                vSTDs = std(reshape(unitData(u).trialResponse(vIndices,:),[1 120]));
                 vCV = nanmean(vSTDs./vMeans);
                 vFF = nanmean((vSTDs.^2)./vMeans);
+                vCV = nanmean(std(unitData(u).trialResponse(vIndices,:),[],2)./unitData(u).meanResponse(vIndices,4));
+                vFF = nanmean((std(unitData(u).trialResponse(vIndices,:),[],2).^2)./unitData(u).meanResponse(vIndices,4));
                 
-                avMeans = mean(unitData(u).trialResponse(avIndices,:),2);
-                avSTDs = std(unitData(u).trialResponse(avIndices,:),[],2);
-%                 avMeans = mean(reshape(unitData(u).trialResponse(avIndices,:),[1 120]));
-%                 avSTDs = std(reshape(unitData(u).trialResponse(avIndices,:),[1 120]));
+                
+%                 avMeans = mean(unitData(u).trialResponse(avIndices,:),2);
+%                 avSTDs = std(unitData(u).trialResponse(avIndices,:),[],2);
+                avMeans = mean(reshape(unitData(u).trialResponse(avIndices,:),[1 120]));
+                avSTDs = std(reshape(unitData(u).trialResponse(avIndices,:),[1 120]));
                 avCV = nanmean(avSTDs./avMeans);
                 avFF = nanmean((avSTDs.^2)./avMeans);
+                avCV = nanmean(std(unitData(u).trialResponse(avIndices,:),[],2)./unitData(u).meanResponse(avIndices,4));
+                avFF = nanmean((std(unitData(u).trialResponse(avIndices,:),[],2).^2)./unitData(u).meanResponse(avIndices,4));
                 
                 cvData{c} = [cvData{c}; vCV vFF avCV avFF dp u neuronNumber];
             end
@@ -757,24 +1090,24 @@ for dp = 1:length(dataPaths)
                     data(e,4) = stdd / avg;
                     data(e,5) = stdd^2 / avg;
                 end
-                figure;hold on;
-                scatter(data(1:60,1),data(1:60,4),'MarkerFaceColor',[0 0 0]);
-                scatter(data(61:120,1),data(61:120,4),'MarkerFaceColor',[0 0 1]);
-                xs = min(data(:,1)):.1:max(data(:,1));
-                ys = sqrt(nanmean(data(:,5)))./sqrt(xs);
-%                 ys = 1./sqrt(xs);
-                plot(xs,ys);
+%                 figure;hold on;
+%                 scatter(data(1:60,1),data(1:60,4),'MarkerFaceColor',[0 0 0]);
+%                 scatter(data(61:120,1),data(61:120,4),'MarkerFaceColor',[0 0 1]);
+%                 xs = min(data(:,1)):.1:max(data(:,1));
+%                 ys = sqrt(nanmean(data(:,5)))./sqrt(xs);
+% %                 ys = 1./sqrt(xs);
+%                 plot(xs,ys);
         end
     end
 end
 
 for c = 1:length(contrasts)
-    vCVMean(c) = mean(cvData{c}(:,1));
-    vCVSTD(c) = std(cvData{c}(:,1))./sqrt(length(cvData{c}(:,1)));
-    avCVMean(c) = mean(cvData{c}(:,3));
-    avCVSTD(c) = std(cvData{c}(:,3))./sqrt(length(cvData{c}(:,3)));
-    dCVMean(c) = mean(cvData{c}(:,3) - cvData{c}(:,1));
-    dCVSTD(c) = std(cvData{c}(:,3) - cvData{c}(:,1))./sqrt(length(cvData{c}(:,1)));
+    vCVMean(c) = nanmean(cvData{c}(:,1));
+    vCVSTD(c) = nanstd(cvData{c}(:,1))./sqrt(length(cvData{c}(:,1)));
+    avCVMean(c) = nanmean(cvData{c}(:,3));
+    avCVSTD(c) = nanstd(cvData{c}(:,3))./sqrt(length(cvData{c}(:,3)));
+    dCVMean(c) = nanmean(cvData{c}(:,3) - cvData{c}(:,1));
+    dCVSTD(c) = nanstd(cvData{c}(:,3) - cvData{c}(:,1))./sqrt(length(cvData{c}(:,1)));
     
     vFFMean(c) = mean(cvData{c}(:,2));
     vFFSTD(c) = std(cvData{c}(:,2))./sqrt(length(cvData{c}(:,2)));

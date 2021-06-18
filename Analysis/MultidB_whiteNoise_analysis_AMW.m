@@ -1,23 +1,24 @@
 
 clear;
 
-experiment = 'EP011';
-mouseID = 'AW178';
-session = 'Session3';
-date = '20210327-1';
+experiment = 'EP013';
+mouseID = 'AW184';
+session = 'Session1';
+date = '20210429';
 stimPath = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'StimInfo');
-stimFile = '20210219_multidBNoise_opto_50rep_400k_005_stimInfo';
+% stimFile = '20210427_noise_1sLong_50rep_multidB_400k_005_stimInfo';
+stimFile = '20210428_noise_1sLong_50rep_multidB_400k_005_stimInfo';
 
-analysisWindow = [-100 400]; %ms relative to stimulus onset
-quantWindow = [0 100]; %ms relative to stimulus onset
+analysisWindow = [-100 1200]; %ms relative to stimulus onset
+quantWindow = [0 1000]; %ms relative to stimulus onset
 baselineWindow = [-90 0]; %ms relative to stimulus onset
 
 frBinWidth = 10; %ms
 
 dataFolder = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
-dataFiles = dir(fullfile(dataFolder,'*ephys_multidBNoise_laser*'));
+dataFiles = dir(fullfile(dataFolder,'*ephys_whiteNoise_multidB*'));
 
-newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'WhiteNoiseMultidB_laser');
+newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'WhiteNoiseMultidB');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);
@@ -45,7 +46,6 @@ baselineScalar = 1000/(baselineWindow(2)-baselineWindow(1));
 binEdges = analysisWindow(1)+frBinWidth:1:analysisWindow(2);
 
 soundResponsiveUnits = [];
-laserResponsiveUnits = [];
 singleUnits = [];
 multiUnits = [];
 
@@ -134,20 +134,16 @@ for n = 1:totalUnits
     anovaMat = [];
     for un = 1:uniqueSounds
         col = trialResponse(un,:)';
-        laserCol = trialResponse(un+uniqueSounds,:)';
-        anovaMat = [anovaMat [col; laserCol]];
+        anovaMat = [anovaMat col];
     end
-    pValues = anova2(anovaMat,repeats,'off');
-    if pValues(1)<0.05
+    pValue = anova1(anovaMat,[],'off');
+    if pValue<0.05
         soundResponsiveUnits = [soundResponsiveUnits neuronNumber];
-    end
-    if pValues(2)<0.05
-        laserResponsiveUnits = [laserResponsiveUnits neuronNumber];
     end
     
     f1 = figure;
     set(f1,'Position',[150 80 1250 700]);
-    subplot(1,4,1);
+    subplot(1,3,1);
     for r = 1:uniqueSounds
         scatter(spikeRaster{r,1},spikeRaster{r,2},[],spikeRaster{r,3},'.');
         hold on;
@@ -157,48 +153,29 @@ for n = 1:totalUnits
     ylabel('Trial type');
     title('Sound only');
     
-    subplot(1,4,2);
-    for r = 1:uniqueSounds
-        scatter(spikeRaster{r+uniqueSounds,1},spikeRaster{r+uniqueSounds,2},[],spikeRaster{r+uniqueSounds,3},'.');
-        hold on;
-    end
-    xlim([analysisWindow(1) analysisWindow(end)]);
-    xlabel('Time (ms)');
-    ylabel('Trial type');
-    title('Sound with laser');
     
-    
-    subplot(1,4,3);
+    subplot(1,3,2);
     hold on;
     baselineTrain = frTrain(1,:);
-    laserTrain = frTrain(1+uniqueSounds,:);
     soundTrain = frTrain(uniqueSounds,:);
-    soundLaserTrain = frTrain(uniqueEvents,:);
     plot(binEdges,baselineTrain,':','Color',rasterColors(1,:));
-    plot(binEdges,laserTrain,':','Color',[0 1 0]);
     plot(binEdges,soundTrain,'Color',rasterColors(1,:));
-    plot(binEdges,soundLaserTrain,'Color',[0 1 0]);
     xlabel('Time (ms)');
     ylabel('Firing rate (Hz)');
-    legend('Baseline','Laser only','Noise','Noise+laser');
+    legend('Baseline','Noise');
     
-    subplot(1,4,4);
+    subplot(1,3,3);
     hold on;
     xx = stimInfo.intensity;
     yy = meanResponse(1:uniqueSounds,4);
     err = meanResponse(1:uniqueSounds,5);
     errorbar(xx,yy,err,'Color',[0 0 0]);
-    lyy = meanResponse((1:uniqueSounds)+uniqueSounds,4);
-    lerr = meanResponse((1:uniqueSounds)+uniqueSounds,5);
-    errorbar(xx,lyy,lerr,'Color',[0 1 0]);
     xlabel('Sound intensity');
     ylabel('Firing rate (Hz)');
-    legend({'Sound only','Sound with laser'});
     
     
     suptitle({['Unit ' num2str(nData.CellInfo(4)) ' (n = ' num2str(n)...
-        '), unitType = ' num2str(nData.CellInfo(6))] ['Sound responsive = ' num2str(pValues(1))...
-        ', Laser responsive = ' num2str(pValues(2))]});
+        '), unitType = ' num2str(nData.CellInfo(6))] ['Sound responsive = ' num2str(pValue)]});
     
     saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.fig']));
     saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.jpg']));
@@ -217,7 +194,6 @@ analysisParams.quantWindow = quantWindow;
 analysisParams.baselineWindow = baselineWindow;
 
 responsiveUnits.soundResponsiveUnits = intersect(soundResponsiveUnits,[singleUnits multiUnits]);
-responsiveUnits.laserResponsiveUnits = intersect(laserResponsiveUnits,[singleUnits multiUnits]);
 responsiveUnits.multiUnits = multiUnits;
 responsiveUnits.singleUnits = singleUnits;
 

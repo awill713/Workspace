@@ -3,7 +3,7 @@
 % close all;
 clearvars -except dsiData osiData osiSorted
 
-saveDir = fullfile('D:\Electrophysiology','EP010','MetaData - AVMultiContrastDriftingGratingsWhiteNoise','MLE model','Individual neurons - recat');
+saveDir = fullfile('F:\Electrophysiology','EP010','MetaData - AVMultiContrastDriftingGratingsWhiteNoise','MLE model','Individual neurons - recat');
 if ~exist(saveDir)
     mkdir(saveDir);
 end
@@ -16,12 +16,12 @@ end
 % dataPaths{6} = fullfile('EP004','AW121','20200226-2');
 % dataPaths{1} = fullfile('EP004','AW124','20200303-1');
 % dataPaths{1} = fullfile('EP004','AW124','20200303-2');
-dataPaths{1} = fullfile('EP010','AW157','20201212-1');
+% dataPaths{1} = fullfile('EP010','AW157','20201212-1');
 % dataPaths{1} = fullfile('EP010','AW157','20201212-2');
 % dataPaths{1} = fullfile('EP010','AW158','20201212-1');
-% dataPaths{1} = fullfile('EP010','AW158','20201212-2');
+dataPaths{1} = fullfile('EP010','AW158','20201212-2');
 
-u = 6;
+u = 106;
 
 % dataPaths{13} = fullfile('EP010','AW159','20201213-1');
 % dataPaths{14} = fullfile('EP010','AW159','20201213-2');
@@ -44,9 +44,9 @@ soundResponsive = 1;
 dp = 1;
 
 %Load data
-dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_final','AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat');
+dataFile = fullfile('F:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_final','AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat');
 load(dataFile);
-stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
+stimPath = dir(fullfile('F:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
 load(fullfile(stimPath(end).folder,stimPath(end).name));
 
 orientations = stimInfo.orientations;

@@ -1,11 +1,11 @@
 
 clear;
 
-experiment = 'EP010';
-mouseID = 'AW165';
-session = 'Session2';
-date = '20210106-2';
-stimPath = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVmultiContrastDriftingGratingsWhiteNoise_stimInfo']);
+experiment = 'EP004';
+mouseID = 'AW121';
+session = 'Session1';
+date = '20200226-1';
+stimPath = fullfile('F:\Electrophysiology\',experiment,mouseID,date,'StimInfo',[date '_' mouseID '_AVmultiContrastDriftingGratingsWhiteNoise_stimInfo']);
 
 analysisWindow = [-100 1200]; %ms relative to stimulus onset
 quantWindow = [0 300]; %ms relative to stimulus onset
@@ -13,11 +13,11 @@ baselineWindow = [-90 0]; %ms relative to stimulus onset
 
 frBinWidth = 10; %ms
 
-dataFolder = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
+dataFolder = fullfile('F:\Electrophysiology\',experiment,mouseID,date,'SpikeMat');
 dataFiles = dir(fullfile(dataFolder,'*AV_driftingGratingsMultiContrast_whiteNoise*'));
 
 
-newDir = fullfile('D:\Electrophysiology\',experiment,mouseID,date,'AVMultiContrastDriftingGratingsWhiteNoise_final');
+newDir = fullfile('F:\Electrophysiology\',experiment,mouseID,date,'AVMultiContrastDriftingGratingsWhiteNoise_final');
 figureDir = fullfile(newDir,'Figures');
 if ~exist(newDir)
     mkdir(newDir);
@@ -343,8 +343,8 @@ for n = 1:totalUnits
         ', Direction selective = ' num2str(realDSIv)] ['Light GLM = ' num2str(glmPval(1))...
         ', Sound GLM = ' num2str(glmPval(2))]});
     
-%     saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.fig']));
-%     saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.jpg']));
+    saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.fig']));
+    saveas(f1,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response rasters and PSTH.jpg']));
     close(f1);
     
     
@@ -378,8 +378,8 @@ for n = 1:totalUnits
         ', Sound responsive = ' num2str(pAV(2)) ', Orientation selective = ' num2str(realOSIv)...
         ', Direction selective = ' num2str(realDSIv)] ['Light GLM = ' num2str(glmPval(1))...
         ', Sound GLM = ' num2str(glmPval(2))]});
-%     saveas(f2,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response polar plots.fig']));
-%     saveas(f2,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response polar plots.jpg']));
+    saveas(f2,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response polar plots.fig']));
+    saveas(f2,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response polar plots.jpg']));
     close(f2);
     
     
@@ -431,8 +431,8 @@ for n = 1:totalUnits
         ', Sound responsive = ' num2str(pAV(2)) ', Orientation selective = ' num2str(realOSIv)...
         ', Direction selective = ' num2str(realDSIv)] ['Light GLM = ' num2str(glmPval(1))...
         ', Sound GLM = ' num2str(glmPval(2))]});
-%     saveas(f5,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response variance.fig']));
-%     saveas(f5,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response variance.jpg']));
+    saveas(f5,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response variance.fig']));
+    saveas(f5,fullfile(figureDir,['Unit ' num2str(nData.CellInfo(4)) ' response variance.jpg']));
     close(f5);
     
 end
@@ -527,7 +527,7 @@ for c = 1:length(contrasts)
 end
 legend({'Light','Light/Sound'});
 suptitle({'Neuron-wise orientation preference, +/- white noise'});
-% saveas(f3,fullfile(newDir,'Neuron-wise orientation preference'));
+saveas(f3,fullfile(newDir,'Neuron-wise orientation preference'));
 
 f4 = figure;
 set(f4,'Position',[25 200 1500 400]);
@@ -540,7 +540,7 @@ for c = 1:length(contrasts)
     title(['Cont = ' num2str(contrasts(c))]);
 end
 suptitle({'Population orientation preference, +/- white noise'});
-% saveas(f4,fullfile(newDir,'Population orientation preference'));
+saveas(f4,fullfile(newDir,'Population orientation preference'));
 %
 % f6 = figure;hold on;
 % slopes = zeros(0,2);

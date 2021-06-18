@@ -141,7 +141,7 @@ glmAnalysisParams.binEdges = binEdges;
 glmAnalysisParams.frBinWidth = frBinWidth;
 glmAnalysisParams.analysiWindow = analysisWindow;
 
-save(fullfile(newDir,'glmTimeCourseData_10msBin.mat'),'unitGLMTimeCourse','movementStats','glmAnalysisParams');
+% save(fullfile(newDir,'glmTimeCourseData_10msBin.mat'),'unitGLMTimeCourse','movementStats','glmAnalysisParams');
 
 lightTrain = zeros(0,binCount);
 lightSoundTrain = zeros(0,binCount);

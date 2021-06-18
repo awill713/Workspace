@@ -132,7 +132,7 @@ for dp = 1:length(dataPaths)
 %             saveas(f1,fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_GLM_TimeCourse',['Unit ' num2str(neuronNumber) ' actual and GLM PSTH.jpg']));
 %             close(f1);
             
-%             rSquares = [rSquares; r2_l r2_sm r2_lsm dp n neuronNumber];
+            rSquares = [rSquares; r2_l r2_sm r2_lsm dp n neuronNumber];
         end
     end
     
