@@ -1,5 +1,7 @@
 clear 
 
+saveDir = fullfile('/Volumes/AARON DATA/','Electrophysiology');
+
 dataPaths{1} = fullfile('EP010','AW159','20201213-1');
 dataPaths{2} = fullfile('EP010','AW159','20201213-2');
 dataPaths{3} = fullfile('EP010','AW162','20210102-1');
@@ -13,10 +15,14 @@ dataPaths{9} = fullfile('EP010','AW165','20210106-2');
 
 
 for dp = 1:length(dataPaths)
+    dp
+%     dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_final','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
+    dataFile = fullfile(saveDir,dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_final','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
     
-    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_final','AVMultiContrastDriftingGratingsWhiteNoiseData.mat');
     load(dataFile);
-    glmPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_GLM_TimeCourse','glmTimeCourseData_10msBin.mat'));
+%     glmPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_GLM_TimeCourse','glmTimeCourseData_10msBin.mat'));
+    glmPath = dir(fullfile(saveDir,dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_GLM_TimeCourse','glmTimeCourseData_10msBin.mat'));
+    
     load(fullfile(glmPath(end).folder,glmPath(end).name));
     
     binCount = glmAnalysisParams.binCount;
@@ -35,6 +41,7 @@ for dp = 1:length(dataPaths)
         nothingTrain = zeros(0,binCount);
         infooo = [];
         rSquares = [];
+        rmse = [];
         theEstimates = [];
     end
     
@@ -102,27 +109,30 @@ for dp = 1:length(dataPaths)
             if max([lOnset smOnset lsmOnset])<10000
                 theEstimates = [theEstimates; lOnset smOnset lsmOnset];
             end
-%             
+            
 %             f1 = figure;
 %             set(f1,'Position',[200 200 1200 500]);
 %             subplot(1,3,1);hold on;
 %             plot(analysisParams.binEdges,psth1);
 %             plot(glmAnalysisParams.binEdges,lTrain);
-%             xc = corrcoef(psth1,lTrainShort);r2_l = xc(1,2)^2;
+            xc = corrcoef(psth1,lTrainShort);r2_l = xc(1,2)^2;
+            rmse_l = sqrt(mean((lTrainShort-psth1).^2));
 %             legend({'Light','GLM'});
 %             title(['r^2 = ' num2str(r2_l)]);
 %             
 %             subplot(1,3,2);hold on;
 %             plot(analysisParams.binEdges,psth2);
 %             plot(glmAnalysisParams.binEdges,smTrain);
-%             xc = corrcoef(psth2,smTrainShort);r2_sm = xc(1,2)^2;
+            xc = corrcoef(psth2,smTrainShort);r2_sm = xc(1,2)^2;
+            rmse_sm = sqrt(mean((smTrainShort-psth2).^2));
 %             legend({'Sound','GLM'});
 %             title(['r^2 = ' num2str(r2_sm)]);
 %             
 %             subplot(1,3,3);hold on;
 %             plot(analysisParams.binEdges,psth3);
 %             plot(glmAnalysisParams.binEdges,lsmTrainMean);
-%             xc = corrcoef(psth3,lsmTrainShort);r2_lsm = xc(1,2)^2;
+            xc = corrcoef(psth3,lsmTrainShort);r2_lsm = xc(1,2)^2;
+            rmse_lsm = sqrt(mean((lsmTrainShort-psth3).^2));
 %             legend({'Audiovisual','GLM'});
 %             title(['r^2 = ' num2str(r2_lsm)]);
 %             
@@ -132,12 +142,23 @@ for dp = 1:length(dataPaths)
 %             saveas(f1,fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_GLM_TimeCourse',['Unit ' num2str(neuronNumber) ' actual and GLM PSTH.jpg']));
 %             close(f1);
             
-%             rSquares = [rSquares; r2_l r2_sm r2_lsm dp n neuronNumber];
+            rSquares = [rSquares; r2_l r2_sm r2_lsm dp n neuronNumber];
+            rmse = [rmse; rmse_l rmse_sm rmse_lsm dp n neuronNumber];
         end
     end
     
-    exclusionRows = find(isinf(max(lightTrain,[],2)) | isnan(max(lightTrain,[],2)));
+%     ex1 = isinf(max(lightTrain,[],2));
+%     [row col] = find(isnan(lightTrain)); ex2 = unique(row);
+%     ex3 = find(max(lightTrain,[],2)>10000 | max(soundTrain,[],2)>10000);
+%     exclusionRows = union(union(ex1,ex2),ex3);
+    
+%     exclusionRows = find(isinf(max(lightTrain,[],2)) | isnan(max(lightTrain,[],2)));
 end
+    ex1 = find(isinf(max(lightTrain,[],2)));
+    [row col] = find(isnan(lightTrain)); ex2 = unique(row);
+    ex3 = find(max(lightTrain,[],2)>10000 | max(soundTrain,[],2)>10000 | max(lightSoundMoveTrain,[],2)>10000);
+    exclusionRows = union(union(ex1,ex2),ex3);
+% exclusionRows = find(isinf(max(lightTrain,[],2)) | isnan(max(lightTrain,[],2)));
 
 lightTrain(exclusionRows,:) = [];
 soundTrain(exclusionRows,:) = [];
@@ -147,25 +168,26 @@ soundMoveTrain(exclusionRows,:) = [];
 lightSoundMoveTrain(exclusionRows,:) = [];
 lightSoundMoveMeanTrain(exclusionRows,:) = [];
 nothingTrain(exclusionRows,:) = [];
+rmse(exclusionRows,:) = [];
 
 f1 = figure;hold on;
 nt = mean(nothingTrain);lt = mean(lightTrain);
 ntSTD = std(nothingTrain,[],1)./sqrt(size(nothingTrain,1));
 ltSTD = std(lightTrain,[],1)./sqrt(size(lightTrain,1));
-hA = area(binEdges,[nt-ntSTD; 2*ntSTD]');
+hA = area(binEdges./1000,[nt-ntSTD; 2*ntSTD]');
 hA(1).FaceAlpha = 0;
 hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [0 0 0];
 hA(2).FaceAlpha = 0.3;
 hA(2).EdgeColor = [1 1 1];
-hA = area(binEdges,[lt-ltSTD; 2*ltSTD]');
+hA = area(binEdges./1000,[lt-ltSTD; 2*ltSTD]');
 hA(1).FaceAlpha = 0;
 hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [0 0 0];
 hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
-plot(binEdges,nt,'Color',[0 0 0],'LineStyle',':');
-plot(binEdges,lt,'Color',[0 0 0]);
+plot(binEdges./1000,nt,'Color',[0 0 0],'LineStyle',':');
+plot(binEdges./1000,lt,'Color',[0 0 0]);
 xlabel('Time (ms)');
 ylabel('GLM-estimated firing rate (Hz)');
 
@@ -174,72 +196,81 @@ f2 = figure;hold on;
 lt = mean(lightTrain);ls = mean(lightSoundTrain);
 ltSTD = std(lightTrain,[],1)./sqrt(size(lightTrain,1));
 lsSTD = std(lightSoundTrain,[],1)./sqrt(size(lightSoundTrain,1));
-hA = area(binEdges,[lt-ltSTD; 2*ltSTD]');
+hA = area(binEdges./1000,[lt-ltSTD; 2*ltSTD]');
 hA(1).FaceAlpha = 0;
 hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [0 0 0];
 hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
-hA = area(binEdges,[ls-lsSTD; 2*lsSTD]');
+hA = area(binEdges./1000,[ls-lsSTD; 2*lsSTD]');
 hA(1).FaceAlpha = 0;
 hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [0 0 1];
 hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
-plot(binEdges,lt,'Color',[0 0 0]);
-plot(binEdges,ls,'Color',[0 0 1]);
-xlabel('Time (ms)');
+plot(binEdges./1000,lt,'Color',[0 0 0]);
+plot(binEdges./1000,ls,'Color',[0 0 1]);
+xlabel('Time (s)');
 ylabel('GLM-estimated firing rate (Hz)');
 
 
 f3 = figure;hold on;
-lt = mean(lightTrain);ls = mean(lightSoundTrain);lsm = mean(lightSoundMoveTrain);
+lt = mean(lightTrain);ls = mean(lightSoundTrain);
+lm = mean(lightMoveTrain); lsm = mean(lightSoundMoveTrain);
 ltSTD = std(lightTrain,[],1)./sqrt(size(lightTrain,1));
 lsSTD = std(lightSoundTrain,[],1)./sqrt(size(lightSoundTrain,1));
+lmSTD = std(lightMoveTrain,[],1)./sqrt(size(lightMoveTrain,1));
 lsmSTD = std(lightSoundMoveTrain,[],1)./sqrt(size(lightSoundMoveTrain,1));
-hA = area(binEdges,[lt-ltSTD; 2*ltSTD]');
+hA = area(binEdges./1000,[lt-ltSTD; 2*ltSTD]');
 hA(1).FaceAlpha = 0;
 hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [0 0 0];
 hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
-hA = area(binEdges,[ls-lsSTD; 2*lsSTD]');
+hA = area(binEdges./1000,[ls-lsSTD; 2*lsSTD]');
 hA(1).FaceAlpha = 0;
 hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [0 0 1];
 hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
-hA = area(binEdges,[lsm-lsmSTD; 2*lsmSTD]');
+hA = area(binEdges./1000,[lm-lmSTD; 2*lmSTD]');
 hA(1).FaceAlpha = 0;
 hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [1 0 0];
 hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
-plot(binEdges,lt,'Color',[0 0 0]);
-plot(binEdges,ls,'Color',[0 0 1]);
-plot(binEdges,lsm,'Color',[1 0 0]);
-xlabel('Time (ms)');
+hA = area(binEdges./1000,[lsm-lsmSTD; 2*lsmSTD]');
+hA(1).FaceAlpha = 0;
+hA(1).EdgeColor = [1 1 1];
+hA(2).FaceColor = [1 0 1];
+hA(2).FaceAlpha = 0.5;
+hA(2).EdgeColor = [1 1 1];
+plot(binEdges./1000,lt,'Color',[0 0 0]);
+plot(binEdges./1000,ls,'Color',[0 0 1]);
+plot(binEdges./1000,lm,'Color',[1 0 0]);
+plot(binEdges./1000,lsm,'Color',[1 0 1]);
+xlabel('Time (s)');
 ylabel('GLM-estimated firing rate (Hz)');
 
 f4 = figure;hold on;
 lt = mean(lightTrain);lm = mean(lightMoveTrain);
 ltSTD = std(lightTrain,[],1)./sqrt(size(lightTrain,1));
 lmSTD = std(lightMoveTrain,[],1)./sqrt(size(lightMoveTrain,1));
-hA = area(binEdges,[lt-ltSTD; 2*ltSTD]');
+hA = area(binEdges./1000,[lt-ltSTD; 2*ltSTD]');
 hA(1).FaceAlpha = 0;
 hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [0 0 0];
 hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
-hA = area(binEdges,[lm-lmSTD; 2*lmSTD]');
+hA = area(binEdges./1000,[lm-lmSTD; 2*lmSTD]');
 hA(1).FaceAlpha = 0;
 hA(1).EdgeColor = [1 1 1];
 hA(2).FaceColor = [1 0 0];
 hA(2).FaceAlpha = 0.5;
 hA(2).EdgeColor = [1 1 1];
-plot(binEdges,lt,'Color',[0 0 0]);
-plot(binEdges,lm,'Color',[1 0 0]);
-xlabel('Time (ms)');
+plot(binEdges./1000,lt,'Color',[0 0 0]);
+plot(binEdges./1000,lm,'Color',[1 0 0]);
+xlabel('Time (s)');
 ylabel('GLM-estimated firing rate (Hz)');
 
 

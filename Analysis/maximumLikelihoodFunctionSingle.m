@@ -5,6 +5,7 @@ function [outputDir] = maximumLikelihoodFunctionSingle(unitStats,testProbe)
 likelihoods = zeros(1,size(unitStats,1));
 for like = 1:length(likelihoods)
     post = pdf(unitStats(like),testProbe);
+    
     likelihoods(like) = log(post);
 end
 % likelihoods

@@ -39,7 +39,7 @@ for dp = 1:length(dataPaths)
             baseline = mean(trial(1:15));
             baseSTD = std(trial(1:15));
             normed = (trial-baseline)./baseSTD;
-            lightLocomotion{i} = [lightLocomotion{i};trial];
+            lightLocomotion{i} = [lightLocomotion{i};normed];
             
             ev = soundEOI{i}(e);
             frameRange = (-15:1:45) + movementData.eventFrames(ev);
@@ -48,7 +48,7 @@ for dp = 1:length(dataPaths)
             baseline = mean(trial(1:15));
             baseSTD = std(trial(1:15));
             normed = (trial-baseline)./baseSTD;
-            soundLocomotion{i} = [soundLocomotion{i};trial];
+            soundLocomotion{i} = [soundLocomotion{i};normed];
         end
     end
     
@@ -548,10 +548,11 @@ dataPaths{9} = fullfile('AW165','20210106-2');
 
 v = [];
 ll = [];
+a = [];
 for dp = 1:length(dataPaths)
     dp
     
-    load(fullfile(saveDir,dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video','AVMultiContrastDriftingGratingsWhiteNoiseData.mat'));
+    load(fullfile(saveDir,dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_final','AVMultiContrastDriftingGratingsWhiteNoiseData.mat'));
     load(fullfile(saveDir,dataPaths{dp},'Video data','movementData.mat'));
     
     for u = 1:length(unitData)
@@ -635,7 +636,7 @@ ss = cell(1,13);
 for dp = 1:length(dataPaths)
     dp
     
-    load(fullfile(saveDir,dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_NEW','AVMultiContrastDriftingGratingsWhiteNoiseData.mat'));
+    load(fullfile(saveDir,dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_final','AVMultiContrastDriftingGratingsWhiteNoiseData.mat'));
     load(fullfile(saveDir,dataPaths{dp},'Video data','movementData.mat'));
     
     for u = 1:length(unitData)
@@ -645,7 +646,10 @@ for dp = 1:length(dataPaths)
                 ismember(neuronNumber,responsiveUnitsGLM.lightResponsiveUnits)
             
             moves = reshape(movementTrials(49:60,:),[1 120]);
+            avmoves = reshape(movementTrials(109:120,:),[1 120]);
+            both = [moves avmoves];
             Lmoves = (moves-mean(moves)) ./ std(moves);
+%             Lmoves = (moves-mean(both)) ./ std(both);
             
             li = reshape(unitData(u).trialResponse(49:60,:),[1 120]);
             for i = 1:13
@@ -658,6 +662,7 @@ for dp = 1:length(dataPaths)
             
             avmoves = reshape(movementTrials(109:120,:),[1 120]);
             Smoves = (avmoves-mean(moves)) ./ std(moves);
+%             Smoves = (avmoves-mean(both)) ./ std(both);
             
             so = reshape(unitData(u).trialResponse(109:120,:),[1 120]);
             for i = 1:13
@@ -714,13 +719,36 @@ dataPaths{7} = fullfile('AW164','20210105');
 dataPaths{8} = fullfile('AW165','20210106-1');
 dataPaths{9} = fullfile('AW165','20210106-2');
 
-range = [-10 0 1 10];
+range = [-10 -0.5 1.5 10];
 ll = cell(1,3);
 ss = cell(1,3);
+binCounts = zeros(2,3);
+both = [];
+for dp = 1:length(dataPaths)
+    load(fullfile(saveDir,dataPaths{dp},'Video data','movementData.mat'));
+    
+    vMoves = reshape(movementTrials(49:60,:),[1 120]);
+    avMoves = reshape(movementTrials(109:120,:),[1 120]);
+    bothMoves = [vMoves avMoves];
+%     zVMoves = (vMoves-mean(vMoves)) ./ std(vMoves);
+    zVMoves = (vMoves-mean(bothMoves)) ./ std(bothMoves);
+    binCounts(1,1) = binCounts(1,1) + length(find(zVMoves>range(1) & zVMoves<range(2)));
+    binCounts(1,2) = binCounts(1,2) + length(find(zVMoves>range(2) & zVMoves<range(3)));
+    binCounts(1,3) = binCounts(1,3) + length(find(zVMoves>range(3) & zVMoves<range(4)));
+
+    avMoves = reshape(movementTrials(109:120,:),[1 120]);
+%     zAVMoves = (avMoves-mean(avMoves)) ./ std(avMoves);
+    zAVMoves = (avMoves-mean(bothMoves)) ./ std(bothMoves);
+    binCounts(2,1) = binCounts(2,1) + length(find(zAVMoves>range(1) & zAVMoves<range(2)));
+    binCounts(2,2) = binCounts(2,2) + length(find(zAVMoves>range(2) & zAVMoves<range(3)));
+    binCounts(2,3) = binCounts(2,3) + length(find(zAVMoves>range(3) & zAVMoves<range(4)));
+    both = [both; zVMoves zAVMoves];
+end
+    
 for dp = 1:length(dataPaths)
     dp
     
-    load(fullfile(saveDir,dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video','AVMultiContrastDriftingGratingsWhiteNoiseData.mat'));
+    load(fullfile(saveDir,dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_Video_final','AVMultiContrastDriftingGratingsWhiteNoiseData.mat'));
     load(fullfile(saveDir,dataPaths{dp},'Video data','movementData.mat'));
     
     for u = 1:length(unitData)
@@ -728,9 +756,15 @@ for dp = 1:length(dataPaths)
         
         if ismember(neuronNumber,responsiveUnitsGLM.soundResponsiveUnits) &&...
                 ismember(neuronNumber,responsiveUnitsGLM.lightResponsiveUnits)
-            
+%         if ismember(neuronNumber,responsiveUnitsGLM.lightSoundInteractUnits) ||...
+%             (ismember(neuronNumber,responsiveUnitsGLM.lightResponsiveUnits) &&...
+%             ismember(neuronNumber,responsiveUnitsGLM.soundResponsiveUnits))
+        
             moves = reshape(movementTrials(49:60,:),[1 120]);
-            Lmoves = (moves-mean(moves)) ./ std(moves);
+            avmoves = reshape(movementTrials(109:120,:),[1 120]);
+            bothmoves = [moves avmoves];
+%             Lmoves = (moves-mean(moves)) ./ std(moves);
+            Lmoves = (moves-mean(bothmoves)) ./ std(bothmoves);
             
             li = reshape(unitData(u).trialResponse(49:60,:),[1 120]);
             for i = 1:3
@@ -742,7 +776,8 @@ for dp = 1:length(dataPaths)
             end
             
             avmoves = reshape(movementTrials(109:120,:),[1 120]);
-            Smoves = (avmoves-mean(moves)) ./ std(moves);
+%             Smoves = (avmoves-mean(moves)) ./ std(moves);
+            Smoves = (avmoves-mean(bothmoves)) ./ std(bothmoves);
             
             so = reshape(unitData(u).trialResponse(109:120,:),[1 120]);
             for i = 1:3
@@ -763,6 +798,18 @@ for i = 1:3
 end
 figure;
 bar([lll;sss]')
+hold on;
+ngroups = 3;
+nbars = 2;
+% Calculating the width for each bar group
+groupwidth = min(0.8, nbars/(nbars + 1.5));
+y = [lll;sss]';
+err = [lstd;sstd]';
+for i = 1:nbars
+    x = (1:ngroups) - groupwidth/2 + (2*i-1) * groupwidth / (2*nbars);
+    errorbar(x, y(:,i), err(:,i), '.');
+end
+hold off
 
 
 %% Reclassify neurons with interaction terms
