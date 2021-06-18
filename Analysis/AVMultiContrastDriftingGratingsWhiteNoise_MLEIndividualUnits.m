@@ -2,7 +2,7 @@
 clear all;
 % close all;
 
-saveDir = fullfile('D:\Electrophysiology','EP010','MetaData - AVMultiContrastDriftingGratingsWhiteNoise','MLE model','Individual neurons - recat');
+saveDir = fullfile('F:\Electrophysiology','EP010','MetaData - AVMultiContrastDriftingGratingsWhiteNoise','MLE model','Individual neurons - recat');
 if ~exist(saveDir)
     mkdir(saveDir);
 end
@@ -37,13 +37,13 @@ lightResponsive = 1;
 orientationSelective = 1;
 soundResponsive = 1;
 
-
+tic
 for dp = 1:length(dataPaths)
     
     %Load data
-    dataFile = fullfile('D:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_final','AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat');
+    dataFile = fullfile('F:\Electrophysiology\',dataPaths{dp},'AVMultiContrastDriftingGratingsWhiteNoise_final','AVMultiContrastDriftingGratingsWhiteNoiseData_selectivity.mat');
     load(dataFile);
-    stimPath = dir(fullfile('D:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
+    stimPath = dir(fullfile('F:\Electrophysiology\',dataPaths{dp},'StimInfo','*AVmultiContrastDriftingGratingsWhiteNoise_stimInfo*'));
     load(fullfile(stimPath(end).folder,stimPath(end).name));
     
     orientations = stimInfo.orientations;
@@ -65,8 +65,8 @@ for dp = 1:length(dataPaths)
          if (ismember(neuronNumber,responsiveUnitsGLM.lightSoundInteractUnits) ||...
                 (ismember(neuronNumber,responsiveUnitsGLM.soundResponsiveUnits) &&...
                 ismember(neuronNumber,responsiveUnitsGLM.lightResponsiveUnits))) &&...
-                (ismember(neuronNumber,responsiveUnits.directionSelectiveUnits) ||...
-                ismember(neuronNumber,responsiveUnits.orientationSelectiveUnits)) &&...
+                (ismember(neuronNumber,responsiveUnits.directionSelectiveUnitsAND) ||...
+                ismember(neuronNumber,responsiveUnits.orientationSelectiveUnitsAND)) &&...
                 ismember(neuronNumber,[responsiveUnits.singleUnits responsiveUnits.multiUnits])
                
             
@@ -77,7 +77,7 @@ for dp = 1:length(dataPaths)
                 tempChoiceMap = zeros(2,length(orientations),length(orientations));
                 for testDir = 1:length(orientations)
                     [dp u c testDir]
-                    
+                    toc
                     mleClassification = zeros(2,length(orientations));
                     
                     
@@ -183,7 +183,7 @@ for dp = 1:length(dataPaths)
                     avEstimate = maximumLikelihoodFunctionSingle(neuronStats(:,2),probeData(2));
                     orientClassification(2,avEstimate) = orientClassification(2,avEstimate)+1;
                 end
-                if ismember(neuronNumber, responsiveUnits.orientationSelectiveUnits)
+                if ismember(neuronNumber, responsiveUnits.orientationSelectiveUnitsAND)
                     orientationMap{1,c} = [orientationMap{1,c}; orientClassification(:,1)'./repeats dp u neuronNumber];
                 end
                 
@@ -235,7 +235,7 @@ for dp = 1:length(dataPaths)
                     avEstimate = maximumLikelihoodFunctionSingle(neuronStats(:,2),probeData(2));
                     directClassification(2,avEstimate) = directClassification(2,avEstimate)+1;
                 end
-                if ismember(neuronNumber, responsiveUnits.directionSelectiveUnits)
+                if ismember(neuronNumber, responsiveUnits.directionSelectiveUnitsAND)
                     directionMap{1,c} = [directionMap{1,c}; directClassification(:,1)'./repeats dp u neuronNumber];
                 end
                 
@@ -259,6 +259,7 @@ for dp = 1:length(dataPaths)
         end
     end
 end
+toc
 
 % save(fullfile(saveDir,'MLE_IndividualNeuron_Data.mat'),'choiceMap','accuracy','orientationMap','directionMap');
 

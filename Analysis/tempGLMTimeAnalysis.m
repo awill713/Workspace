@@ -143,7 +143,10 @@ for dp = 1:length(dataPaths)
 %             close(f1);
             
             rSquares = [rSquares; r2_l r2_sm r2_lsm dp n neuronNumber];
+<<<<<<< HEAD
             rmse = [rmse; rmse_l rmse_sm rmse_lsm dp n neuronNumber];
+=======
+>>>>>>> 61bc88a50b2304919cd8dd271d02e441fdf75c0d
         end
     end
     
