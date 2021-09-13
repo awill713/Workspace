@@ -43,6 +43,7 @@ for dp = 1:length(dataPaths)
         rSquares = [];
         rmse = [];
         theEstimates = [];
+        coeffMat = [];
     end
     
     
@@ -59,7 +60,7 @@ for dp = 1:length(dataPaths)
 %                 ~isempty(unitGLMTimeCourse(n).coefficients)
             
             coeff = unitGLMTimeCourse(n).coefficients;
-            
+            coeffMat = cat(3,coeffMat,coeff);
             
             lTrain = 1000/frBinWidth * exp(coeff(1,:) + coeff(2,:)*1 + coeff(3,:)*boolean(0) + coeff(4,:)*1 + coeff(5,:)*1*boolean(0) + coeff(6,:)*1*1 + coeff(7,:)*boolean(0)*1);
             sTrain = 1000/frBinWidth * exp(coeff(1,:) + coeff(2,:)*0 + coeff(3,:)*boolean(1) + coeff(4,:)*1 + coeff(5,:)*0*boolean(1) + coeff(6,:)*0*1 + coeff(7,:)*boolean(1)*1);
@@ -143,10 +144,7 @@ for dp = 1:length(dataPaths)
 %             close(f1);
             
             rSquares = [rSquares; r2_l r2_sm r2_lsm dp n neuronNumber];
-<<<<<<< HEAD
             rmse = [rmse; rmse_l rmse_sm rmse_lsm dp n neuronNumber];
-=======
->>>>>>> 61bc88a50b2304919cd8dd271d02e441fdf75c0d
         end
     end
     
